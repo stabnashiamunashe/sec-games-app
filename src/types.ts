@@ -47,4 +47,5 @@ export interface ParticipatingTeam {
   color: string;
   avatar: string;
   cumulativeHistory: SeasonTotal[]; // previous seasons
+  passcode?: string;
 }

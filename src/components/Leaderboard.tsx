@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { ParticipatingTeam, Team } from '../types';
+import { ParticipatingTeam } from '../types';
 import { calculateUserScore, POINT_VALUES } from '../utils/scoring';
 import { WORLD_CUP_TEAMS } from '../data/teams';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Award, CheckCircle, XCircle, Info, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { Trophy, Award, ChevronDown, ChevronUp, Info, Activity, ShieldCheck } from 'lucide-react';
 
 interface LeaderboardProps {
   participatingTeams: ParticipatingTeam[];
   predictions: Record<string, Record<string, string>>; // teamId -> Record<matchId, teamId>
   actualResults: Record<string, string>;
   onSelectTeamPredictor: (teamId: string) => void;
+  games: any[]; // SQLite games array
+  directPoints?: any[]; // optional list of direct point awards
 }
 
 export default function Leaderboard({
@@ -17,17 +19,26 @@ export default function Leaderboard({
   predictions,
   actualResults,
   onSelectTeamPredictor,
+  games = [],
+  directPoints = [],
 }: LeaderboardProps) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
 
-  // Calculate scores for all teams
+  // Calculate scores for all teams dynamically using SQLite data and direct points
   const teamScores = participatingTeams.map((pTeam) => {
     const p = predictions[pTeam.id] || {};
-    const breakdown = calculateUserScore(p, actualResults);
+    const breakdown = calculateUserScore(p, actualResults, games);
+    
+    // Find direct sports points
+    const teamDirectPoints = (directPoints || []).filter(dp => dp.team_id === pTeam.id);
+    const directPointsSum = teamDirectPoints.reduce((sum, item) => sum + item.points, 0);
+
     return {
       ...pTeam,
       breakdown,
-      currentPoints: breakdown.total,
+      directPointsList: teamDirectPoints,
+      directPointsSum,
+      currentPoints: breakdown.total + directPointsSum,
     };
   });
 
@@ -37,7 +48,11 @@ export default function Leaderboard({
   const getTeamName = (id: string | null): string => {
     if (!id) return 'Pending';
     const t = WORLD_CUP_TEAMS.find((team) => team.id === id);
-    return t ? `${t.flag} ${t.name}` : id;
+    if (t) return `${t.flag} ${t.name}`;
+
+    // Check if it's one of the departmental team IDs
+    const dept = participatingTeams.find((p) => p.id === id);
+    return dept ? `${dept.avatar} ${dept.name}` : id;
   };
 
   const toggleExpand = (teamId: string) => {
@@ -46,60 +61,63 @@ export default function Leaderboard({
 
   return (
     <div className="space-y-6" id="leaderboard-section">
-      {/* Header Info - Geometric Balance Theme */}
-      <div className="bg-slate-900 p-5 sm:p-6 text-white border-4 border-slate-900 rounded-none relative overflow-hidden">
+      {/* Header Info - SecZim Branded */}
+      <div className="bg-brand-dark p-5 sm:p-6 text-white border-4 border-brand-dark rounded-none relative overflow-hidden">
+        <div className="absolute right-0 top-0 opacity-10 font-black text-6xl uppercase tracking-tighter select-none pointer-events-none">
+          SECZIM
+        </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10 relative">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase flex items-center gap-2">
-              <Trophy className="text-blue-400 w-6 h-6 shrink-0" />
-              Live Leaderboard
+            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase flex items-center gap-2 font-sans">
+              <Trophy className="text-brand-gold w-6 h-6 shrink-0" />
+              Championship Standings
             </h2>
-            <p className="text-blue-400 text-xs font-bold uppercase tracking-widest mt-1">
-              Standings & Predictions accuracy tracker
+            <p className="text-brand-gold text-xs font-bold uppercase tracking-widest mt-1">
+              Live Bracket & Corporate Games leaderboard
             </p>
           </div>
-          <div className="bg-slate-800 p-3 rounded-none border-2 border-slate-700 text-[10px] font-mono text-slate-300 space-y-1">
+          <div className="bg-brand-dark-medium p-3 rounded-none border-2 border-brand-dark-light text-[10px] font-mono text-brand-dark-slate space-y-1">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-blue-600"></span>
-              <span>R32: {POINT_VALUES.R32} PTS EACH</span>
+              <span className="w-2.5 h-2.5 bg-brand-gold"></span>
+              <span>R32: {POINT_VALUES.R32} PTS | R16: {POINT_VALUES.R16} PTS</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-indigo-600"></span>
-              <span>R16: {POINT_VALUES.R16} PTS EACH</span>
+              <span className="w-2.5 h-2.5 bg-brand-gold-light"></span>
+              <span>QF: {POINT_VALUES.QF} PTS | SF: {POINT_VALUES.SF} PTS</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-purple-600"></span>
-              <span>QF: {POINT_VALUES.QF} PTS EACH</span>
+              <span className="w-2.5 h-2.5 bg-white"></span>
+              <span>SECZIM CORPORATE GAMES: {POINT_VALUES.SecZim} PTS EACH</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Leaderboard List - Square Geometric Rows */}
-      <div className="bg-white rounded-none border-4 border-slate-900 shadow-none overflow-hidden">
-        <div className="divide-y-2 divide-slate-900">
+      <div className="bg-white rounded-none border-4 border-brand-dark shadow-none overflow-hidden">
+        <div className="divide-y-2 divide-brand-dark">
           {sortedTeams.map((team, index) => {
             const isFirst = index === 0;
             const isExpanded = expandedTeamId === team.id;
             const colorClass = team.color;
 
             return (
-              <div key={team.id} className="transition-colors hover:bg-slate-50">
+              <div key={team.id} className="transition-colors hover:bg-brand-gold-bg/30">
                 <div
-                  className={`flex items-center justify-between p-4 sm:p-5 cursor-pointer select-none border-l-8`}
+                  className="flex items-center justify-between p-4 sm:p-5 cursor-pointer select-none border-l-8"
                   style={{ borderLeftColor: colorClass }}
                   onClick={() => toggleExpand(team.id)}
                   id={`leaderboard-row-${team.id}`}
                 >
                   <div className="flex items-center gap-3 sm:gap-4">
                     {/* Rank */}
-                    <div className="flex items-center justify-center w-8 h-8 font-black text-lg bg-slate-900 text-white rounded-none">
+                    <div className="flex items-center justify-center w-8 h-8 font-black text-lg bg-brand-dark text-white rounded-none font-sans">
                       {index + 1}
                     </div>
 
                     {/* Avatar Badge */}
                     <div
-                      className="w-10 h-10 rounded-none flex items-center justify-center text-xl font-bold border-2 border-slate-900"
+                      className="w-10 h-10 rounded-none flex items-center justify-center text-xl font-bold border-2 border-brand-dark"
                       style={{ backgroundColor: `${colorClass}15` }}
                     >
                       {team.avatar}
@@ -107,27 +125,27 @@ export default function Leaderboard({
 
                     {/* Team Name */}
                     <div>
-                      <h3 className="font-black text-slate-900 text-base flex items-center gap-2 uppercase tracking-tight">
+                      <h3 className="font-black text-brand-dark text-base flex items-center gap-2 uppercase tracking-tight">
                         {team.name}
                         {isFirst && (
-                          <span className="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-none uppercase tracking-widest">
+                          <span className="bg-brand-gold text-brand-dark text-[9px] font-black px-2 py-0.5 rounded-none uppercase tracking-widest">
                             LEADER
                           </span>
                         )}
                       </h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">TAP TO EXPAND SPLIT</p>
+                      <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wider">TAP TO EXPAND SPLIT</p>
                     </div>
                   </div>
 
                   {/* Points display */}
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">
+                      <span className="text-2xl sm:text-3xl font-black text-brand-dark font-mono">
                         {team.currentPoints}
                       </span>
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest block">points</span>
+                      <span className="text-[9px] text-brand-dark-light font-bold uppercase tracking-widest block">points</span>
                     </div>
-                    <div className="text-slate-900">
+                    <div className="text-brand-dark">
                       {isExpanded ? <ChevronUp className="w-5 h-5 stroke-2" /> : <ChevronDown className="w-5 h-5 stroke-2" />}
                     </div>
                   </div>
@@ -141,71 +159,106 @@ export default function Leaderboard({
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className="overflow-hidden border-t-2 border-slate-900 bg-slate-50"
+                      className="overflow-hidden border-t-2 border-brand-dark bg-brand-gold-bg/10"
                     >
-                      <div className="p-4 sm:p-6 space-y-4">
+                      <div className="p-4 sm:p-6 space-y-4 border-l-8" style={{ borderLeftColor: colorClass }}>
                         {/* Quick points split - Geometric blocks */}
-                        <div className="grid grid-cols-5 gap-2 text-center">
-                          <div className="bg-white p-2.5 rounded-none border-2 border-slate-900">
-                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block">R32</span>
-                            <span className="text-sm font-black text-slate-900 font-mono">{team.breakdown.R32}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">SCORE SPLIT BREAKDOWN</span>
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">R32</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.R32}</span>
                           </div>
-                          <div className="bg-white p-2.5 rounded-none border-2 border-slate-900">
-                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block">R16</span>
-                            <span className="text-sm font-black text-slate-900 font-mono">{team.breakdown.R16}</span>
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">R16</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.R16}</span>
                           </div>
-                          <div className="bg-white p-2.5 rounded-none border-2 border-slate-900">
-                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block">QF</span>
-                            <span className="text-sm font-black text-slate-900 font-mono">{team.breakdown.QF}</span>
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">QF</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.QF}</span>
                           </div>
-                          <div className="bg-white p-2.5 rounded-none border-2 border-slate-900">
-                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block">SF</span>
-                            <span className="text-sm font-black text-slate-900 font-mono">{team.breakdown.SF}</span>
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">SF</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.SF}</span>
                           </div>
-                          <div className="bg-blue-50 p-2.5 rounded-none border-2 border-blue-600">
-                            <span className="text-[9px] text-blue-600 uppercase font-black tracking-widest block font-sans">Final</span>
-                            <span className="text-sm font-black text-blue-800 font-mono">{team.breakdown.Final}</span>
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">Final</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.Final}</span>
+                          </div>
+                          <div className="bg-brand-gold-pale p-2 rounded-none border-2 border-brand-gold">
+                            <span className="text-[9px] text-brand-dark font-black uppercase tracking-widest block">SecZim</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.SecZim}</span>
                           </div>
                         </div>
 
                         {/* Predicted Champion Section */}
-                        <div className="bg-white p-4 rounded-none border-2 border-slate-900 flex items-center justify-between">
+                        <div className="bg-white p-4 rounded-none border-2 border-brand-dark flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <Award className="text-blue-600 w-5 h-5 shrink-0" />
+                            <Award className="text-brand-gold w-5 h-5 shrink-0" />
                             <div>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider">Predicted Champion</span>
-                              <span className="font-black text-slate-900 text-sm sm:text-base">
-                                {getTeamName(predictions[team.id]?.['Champion'] || null).toUpperCase()}
+                              <span className="text-[10px] text-brand-dark-muted font-bold uppercase block tracking-wider">Predicted World Cup Champion</span>
+                              <span className="font-black text-brand-dark text-sm sm:text-base">
+                                {getTeamName(predictions[team.id]?.['Champion'] || predictions[team.id]?.['Final-1'] || null).toUpperCase()}
                               </span>
                             </div>
                           </div>
                           <div>
                             {actualResults['Final-1'] ? (
-                              predictions[team.id]?.['Champion'] === actualResults['Final-1'] ? (
-                                <span className="flex items-center gap-1 text-white text-xs font-black bg-emerald-600 px-3 py-1 rounded-none uppercase tracking-wider">
+                              (predictions[team.id]?.['Champion'] || predictions[team.id]?.['Final-1']) === actualResults['Final-1'] ? (
+                                <span className="flex items-center gap-1 text-brand-dark text-xs font-black bg-brand-gold px-3 py-1 rounded-none uppercase tracking-wider">
                                   Correct (+100)
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-1 text-white text-xs font-black bg-rose-600 px-3 py-1 rounded-none uppercase tracking-wider">
+                                <span className="flex items-center gap-1 text-white text-xs font-black bg-brand-dark-muted px-3 py-1 rounded-none uppercase tracking-wider">
                                   Incorrect
                                 </span>
                               )
                             ) : (
-                              <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 border border-slate-300 rounded-none uppercase font-black tracking-wider">
+                              <span className="text-xs text-brand-dark-light bg-brand-gold-bg px-3 py-1 border border-brand-dark-border rounded-none uppercase font-black tracking-wider">
                                 Pending
                               </span>
                             )}
                           </div>
                         </div>
 
+                        {/* Direct Points / Achievements Section (Chess, Cards, etc.) */}
+                        {team.directPointsList && team.directPointsList.length > 0 && (
+                          <div className="bg-white p-4 rounded-none border-2 border-brand-dark space-y-2">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark flex items-center gap-1.5">
+                                <Trophy className="w-4 h-4 text-brand-gold" />
+                                Direct Sports Awards (Chess, Cards, etc.)
+                              </span>
+                              <span className="text-[10px] font-mono font-black text-brand-gold bg-brand-dark px-2 py-0.5">
+                                TOTAL: +{team.directPointsSum} PTS
+                              </span>
+                            </div>
+                            <div className="divide-y divide-slate-100 max-h-40 overflow-y-auto pr-1">
+                              {team.directPointsList.map((dp: any) => (
+                                <div key={dp.id} className="py-2 flex items-center justify-between text-xs">
+                                  <div className="space-y-0.5">
+                                    <span className="font-black text-brand-dark block uppercase">{dp.game_name}</span>
+                                    <span className="text-[9px] font-mono text-brand-dark-muted block">
+                                      Awarded: {new Date(dp.date_awarded).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                  <span className="font-mono font-black text-brand-dark bg-brand-gold-pale px-2.5 py-1 border border-brand-gold text-xs shrink-0">
+                                    +{dp.points} PTS
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* View Prediction Tree Button */}
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-end pt-1">
                           <button
                             onClick={() => onSelectTeamPredictor(team.id)}
-                            className="text-xs font-black bg-slate-900 text-white hover:bg-slate-800 px-4 py-2.5 rounded-none flex items-center gap-2 uppercase tracking-widest cursor-pointer border-2 border-slate-900"
+                            className="text-xs font-black bg-brand-dark text-white hover:bg-brand-gold hover:text-brand-dark px-4 py-2.5 rounded-none flex items-center gap-2 uppercase tracking-widest cursor-pointer border-2 border-brand-dark transition-all"
                           >
-                            <Info className="w-4 h-4 text-blue-400" />
-                            View/Edit Bracket
+                            <Activity className="w-4 h-4 text-brand-gold" />
+                            View/Edit Team Predictions
                           </button>
                         </div>
                       </div>
@@ -219,38 +272,39 @@ export default function Leaderboard({
       </div>
 
       {/* Rules Card */}
-      <div className="bg-slate-900 text-white rounded-none p-5 sm:p-6 border-4 border-slate-900">
-        <h4 className="text-sm font-black uppercase tracking-widest text-blue-400 flex items-center gap-2 mb-3">
-          <Info className="w-5 h-5 text-blue-400" />
+      <div className="bg-brand-dark text-white rounded-none p-5 sm:p-6 border-4 border-brand-dark">
+        <h4 className="text-sm font-black uppercase tracking-widest text-brand-gold flex items-center gap-2 mb-3 font-sans">
+          <ShieldCheck className="w-5 h-5 text-brand-gold" />
           Scoring Rules Reference
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-2 font-mono text-slate-300 border-r border-slate-800 pr-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
+          <div className="space-y-2 font-mono text-brand-dark-slate md:border-r border-brand-dark-medium md:pr-4">
             <div className="flex justify-between">
-              <span>ROUND OF 32:</span>
-              <span className="text-blue-400 font-bold">+{POINT_VALUES.R32} PTS</span>
+              <span>FIFA R32 MATCH CORRECTNESS:</span>
+              <span className="text-brand-gold font-bold">+{POINT_VALUES.R32} PTS EACH</span>
             </div>
             <div className="flex justify-between">
-              <span>ROUND OF 16:</span>
-              <span className="text-blue-400 font-bold">+{POINT_VALUES.R16} PTS</span>
+              <span>FIFA R16 MATCH CORRECTNESS:</span>
+              <span className="text-brand-gold font-bold">+{POINT_VALUES.R16} PTS EACH</span>
             </div>
             <div className="flex justify-between">
-              <span>QUARTERFINALS:</span>
-              <span className="text-blue-400 font-bold">+{POINT_VALUES.QF} PTS</span>
+              <span>FIFA QUARTERFINALS CORRECTNESS:</span>
+              <span className="text-brand-gold font-bold">+{POINT_VALUES.QF} PTS EACH</span>
             </div>
           </div>
-          <div className="space-y-2 font-mono text-slate-300">
+          <div className="space-y-2 font-mono text-brand-dark-slate">
             <div className="flex justify-between">
-              <span>SEMIFINALS:</span>
-              <span className="text-blue-400 font-bold">+{POINT_VALUES.SF} PTS</span>
+              <span>FIFA SEMIFINALS CORRECTNESS:</span>
+              <span className="text-brand-gold font-bold">+{POINT_VALUES.SF} PTS EACH</span>
             </div>
-            <div className="flex justify-between text-blue-400 font-black">
-              <span>WORLD CUP FINAL:</span>
+            <div className="flex justify-between text-brand-gold font-black">
+              <span>FIFA WORLD CUP FINAL WINNER:</span>
               <span>+{POINT_VALUES.Final} PTS</span>
             </div>
-            <p className="text-[10px] font-sans text-slate-400 font-bold uppercase tracking-wider pt-1 border-t border-slate-800">
-              * Matches must be picked stage-by-stage based on correct progression.
-            </p>
+            <div className="flex justify-between text-white font-black">
+              <span>SECZIM CORPORATE GAME CORRECTNESS:</span>
+              <span className="text-brand-gold">+{POINT_VALUES.SecZim} PTS EACH</span>
+            </div>
           </div>
         </div>
       </div>

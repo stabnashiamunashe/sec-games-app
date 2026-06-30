@@ -1,11 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,300;0,400;0,900;1,300;1,400;1,900&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-gold: #C09138;
+  --color-brand-gold-light: #C9A157;
+  --color-brand-gold-medium: #C69E80;
+  --color-brand-gold-soft: #DFC598;
+  --color-brand-gold-extra-light: #E7D4B5;
+  --color-brand-gold-pale: #F0E3CF;
+  --color-brand-gold-bg: #F8F3EB;
+
+  --color-brand-dark: #161615;
+  --color-brand-dark-medium: #313131;
+  --color-brand-dark-light: #515151;
+  --color-brand-dark-muted: #777777;
+  --color-brand-dark-gray: #A5A5A5;
+  --color-brand-dark-border: #C3C3C3;
+  --color-brand-dark-slate: #DCDCDC;
 }
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--color-brand-gold-bg);
+  color: var(--color-brand-dark);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-brand-gold-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-gold);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-gold-light);
 }
