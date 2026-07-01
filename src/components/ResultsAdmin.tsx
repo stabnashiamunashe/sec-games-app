@@ -9,8 +9,8 @@ interface ResultsAdminProps {
   games: any[]; // SQLite games list
   participatingTeams: ParticipatingTeam[];
   onRefreshData: () => Promise<void>;
-  simulatedDate: string;
-  onUpdateSimulatedDate: (newDate: string) => void;
+  currentTimeIso: string;
+  onRefreshServerTime: () => Promise<void>;
   directPoints?: any[]; // optional list of direct point awards
 }
 
@@ -20,8 +20,8 @@ export default function ResultsAdmin({
   games = [],
   participatingTeams,
   onRefreshData,
-  simulatedDate,
-  onUpdateSimulatedDate,
+  currentTimeIso,
+  onRefreshServerTime,
   directPoints = [],
 }: ResultsAdminProps) {
   // Admin Login State
@@ -53,6 +53,8 @@ export default function ResultsAdmin({
   const [newTeamColor, setNewTeamColor] = useState('#C09138');
   const [newTeamAvatar, setNewTeamAvatar] = useState('⚽');
   const [newTeamPasscode, setNewTeamPasscode] = useState('1234');
+  const [teamPasscodeEdits, setTeamPasscodeEdits] = useState<Record<string, string>>({});
+  const [savingPasscodeTeamId, setSavingPasscodeTeamId] = useState<string | null>(null);
 
   // Custom Direct Points State
   const [showDirectPointsForm, setShowDirectPointsForm] = useState(false);
@@ -171,11 +173,45 @@ export default function ResultsAdmin({
     }
   };
 
-  // API Call: Award direct points for chess, cards, etc.
+  // API Call: Reset team passcode as admin
+  const handleResetTeamPasscode = async (teamId: string) => {
+    const newPasscode = teamPasscodeEdits[teamId] || '';
+    if (!/^\d{4}$/.test(newPasscode)) {
+      alert('Please enter a new 4-digit PIN.');
+      return;
+    }
+
+    setSavingPasscodeTeamId(teamId);
+    try {
+      const response = await fetch('/api/admin/teams/passcode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': getAdminKey()
+        },
+        body: JSON.stringify({ teamId, newPasscode })
+      });
+
+      if (response.ok) {
+        alert('Team passcode reset successfully.');
+        setTeamPasscodeEdits((prev) => ({ ...prev, [teamId]: '' }));
+        await onRefreshData();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to reset passcode.');
+      }
+    } catch (err) {
+      alert('Error resetting team passcode.');
+    } finally {
+      setSavingPasscodeTeamId(null);
+    }
+  };
+
+  // API Call: Award actual points for chess, cards, etc.
   const handleAwardDirectPoints = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDirectPointsTeamId || !newDirectPointsGameName || !newDirectPointsPoints) {
-      alert('Please select a department, enter game name, and points.');
+      alert('Please select a team, enter game name, and points.');
       return;
     }
 
@@ -194,7 +230,7 @@ export default function ResultsAdmin({
       });
 
       if (response.ok) {
-        alert('Direct points awarded successfully!');
+        alert('Actual points awarded successfully!');
         setNewDirectPointsGameName('');
         await onRefreshData();
       } else {
@@ -376,11 +412,6 @@ export default function ResultsAdmin({
     return WORLD_CUP_TEAMS.find((t) => t.id === id) || null;
   };
 
-  const getDeptObj = (id: string | null): ParticipatingTeam | null => {
-    if (!id) return null;
-    return participatingTeams.find((t) => t.id === id) || null;
-  };
-
   const getTeamName = (id: string | null, category: 'world_cup' | 'seczim_games'): string => {
     if (!id) return 'Pending';
     if (category === 'world_cup') {
@@ -419,7 +450,7 @@ export default function ResultsAdmin({
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight text-brand-dark">Settle / Admin Panel Locked</h2>
           <p className="text-xs text-brand-dark-muted mt-2">
-            This module is restricted to SecZim Tournament Administrators to settle matches and manage departmental prediction profiles.
+            This module is restricted to SecZim Tournament Administrators to settle matches and manage prediction team profiles.
           </p>
         </div>
 
@@ -442,7 +473,6 @@ export default function ResultsAdmin({
             {isSubmitting ? 'Authenticating...' : 'Sign In as Admin'}
           </button>
         </form>
-        <p className="text-[10px] text-brand-dark-muted font-bold">DEFAULT DEMO PASSWORD: <span className="font-mono text-brand-gold">seczimadmin</span></p>
       </div>
     );
   }
@@ -458,7 +488,7 @@ export default function ResultsAdmin({
             SecZim Sports Admin Console
           </h2>
           <p className="text-brand-gold text-[10px] font-bold uppercase tracking-wider mt-1">
-            Authorize bracket progression, reset credentials, and customize matches
+            Authorize bracket progression, reset credentials, and record actual points
           </p>
         </div>
         <button
@@ -486,13 +516,13 @@ export default function ResultsAdmin({
               onClick={() => { setShowTeamForm(!showTeamForm); setShowGameForm(false); setShowDirectPointsForm(false); }}
               className="text-[10px] font-black bg-brand-dark text-white hover:bg-brand-gold hover:text-brand-dark px-3 py-2 border border-brand-dark rounded-none uppercase tracking-widest flex items-center gap-1 cursor-pointer"
             >
-              <PlusCircle className="w-3.5 h-3.5" /> Register Competitor Dept
+              <PlusCircle className="w-3.5 h-3.5" /> Register Competitor Team
             </button>
             <button
               onClick={() => { setShowDirectPointsForm(!showDirectPointsForm); setShowTeamForm(false); setShowGameForm(false); }}
               className="text-[10px] font-black bg-brand-gold text-brand-dark hover:bg-brand-dark hover:text-white px-3 py-2 border border-brand-gold rounded-none uppercase tracking-widest flex items-center gap-1 cursor-pointer"
             >
-              <PlusCircle className="w-3.5 h-3.5" /> Award Direct Points (Chess/Cards)
+              <PlusCircle className="w-3.5 h-3.5" /> Award Actual Points
             </button>
           </div>
 
@@ -520,21 +550,25 @@ export default function ResultsAdmin({
           </div>
         </div>
 
-        {/* Global Time Clock Simulator */}
+        {/* Official Lock Clock */}
         <div className="bg-white border-2 border-brand-dark p-4 rounded-none space-y-3">
           <h4 className="text-xs font-black uppercase tracking-widest text-brand-dark-light flex items-center gap-1">
-            <Calendar className="w-4 h-4 text-brand-gold" /> Tournament Time Controller
+            <Calendar className="w-4 h-4 text-brand-gold" /> Official Lock Clock
           </h4>
           <p className="text-[10px] text-brand-dark-muted">
-            Changing this date locks or unlocks match prediction grids. (Predictions lock once current simulated time passes the match kickoff time).
+            Predictions close automatically when the current server UTC time reaches each match kickoff.
           </p>
-          <div className="flex gap-2">
-            <input
-              type="datetime-local"
-              value={simulatedDate.slice(0, 16)}
-              onChange={(e) => onUpdateSimulatedDate(new Date(e.target.value).toISOString())}
-              className="flex-1 bg-slate-50 border-2 border-brand-dark px-3 py-1.5 text-xs font-mono font-bold text-brand-dark focus:outline-none focus:bg-white"
-            />
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 bg-slate-50 border-2 border-brand-dark px-3 py-2 text-xs font-mono font-bold text-brand-dark">
+              {new Date(currentTimeIso).toUTCString().replace('GMT', 'UTC')}
+            </div>
+            <button
+              type="button"
+              onClick={onRefreshServerTime}
+              className="text-[10px] font-black bg-brand-dark text-white hover:bg-brand-gold hover:text-brand-dark px-3 py-2 border border-brand-dark rounded-none uppercase tracking-widest cursor-pointer"
+            >
+              Refresh Time
+            </button>
           </div>
         </div>
       </div>
@@ -543,7 +577,7 @@ export default function ResultsAdmin({
       {showTeamForm && (
         <form onSubmit={handleAddTeam} className="bg-white border-4 border-brand-dark p-5 rounded-none space-y-4">
           <h3 className="text-sm font-black uppercase tracking-wide text-brand-dark border-b border-slate-200 pb-2">
-            Register Competing SecZim Department / Team
+            Register Competing SecZim Team
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
@@ -562,7 +596,7 @@ export default function ResultsAdmin({
               <input
                 type="text"
                 required
-                placeholder="SecZim Compliance"
+                placeholder="Team Gold"
                 value={newTeamName}
                 onChange={(e) => setNewTeamName(e.target.value)}
                 className="w-full bg-slate-50 border-2 border-brand-dark px-2.5 py-1.5 text-xs font-black uppercase tracking-wide focus:outline-none"
@@ -615,7 +649,7 @@ export default function ResultsAdmin({
               type="submit"
               className="text-xs font-black bg-brand-dark text-white px-4 py-2 hover:bg-brand-gold hover:text-brand-dark border-2 border-brand-dark uppercase tracking-wider"
             >
-              Register Department
+              Register Team
             </button>
           </div>
         </form>
@@ -625,11 +659,11 @@ export default function ResultsAdmin({
       {showDirectPointsForm && (
         <div className="bg-white border-4 border-brand-dark p-5 rounded-none space-y-4">
           <h3 className="text-sm font-black uppercase tracking-wide text-brand-dark border-b border-slate-200 pb-2">
-            Award Direct Sports & Boardgame Points (Chess, Cards, etc.)
+            Award Actual Points (Chess, Cards, Table Tennis, etc.)
           </h3>
           <form onSubmit={handleAwardDirectPoints} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
             <div>
-              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">Select Department:</label>
+              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">Select Team:</label>
               <select
                 required
                 value={newDirectPointsTeamId}
@@ -680,7 +714,7 @@ export default function ResultsAdmin({
           {/* Direct Points History Table inside admin form */}
           <div className="border-t border-slate-200 pt-3">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light mb-2">
-              Existing Direct Points Records ({directPoints.length})
+              Existing Actual Points Records ({directPoints.length})
             </h4>
             {directPoints.length === 0 ? (
               <p className="text-xs text-brand-dark-muted font-bold uppercase italic">No direct points awarded yet.</p>
@@ -689,7 +723,7 @@ export default function ResultsAdmin({
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-brand-dark text-white font-sans text-[10px] font-black uppercase tracking-widest border-b border-brand-dark">
-                      <th className="p-2 border-r border-brand-dark-light">Department</th>
+                      <th className="p-2 border-r border-brand-dark-light">Team</th>
                       <th className="p-2 border-r border-brand-dark-light">Game Name</th>
                       <th className="p-2 border-r border-brand-dark-light">Points</th>
                       <th className="p-2 border-r border-brand-dark-light">Awarded Date</th>
@@ -698,11 +732,11 @@ export default function ResultsAdmin({
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-sans">
                     {directPoints.map((dp: any) => {
-                      const d = participatingTeams.find((dept) => dept.id === dp.team_id);
-                      const deptLabel = d ? `${d.avatar} ${d.name}` : dp.team_id;
+                      const team = participatingTeams.find((t) => t.id === dp.team_id);
+                      const teamLabel = team ? `${team.avatar} ${team.name}` : dp.team_id;
                       return (
                         <tr key={dp.id} className="hover:bg-slate-50 text-brand-dark">
-                          <td className="p-2 border-r border-slate-200 font-bold uppercase">{deptLabel}</td>
+                          <td className="p-2 border-r border-slate-200 font-bold uppercase">{teamLabel}</td>
                           <td className="p-2 border-r border-slate-200 uppercase font-black">{dp.game_name}</td>
                           <td className="p-2 border-r border-slate-200 font-mono font-black text-brand-gold bg-brand-gold-pale/30">+{dp.points}</td>
                           <td className="p-2 border-r border-slate-200 text-[10px] font-mono">
@@ -786,7 +820,7 @@ export default function ResultsAdmin({
               <h5 className="text-[10px] font-black uppercase mb-2 text-brand-dark-light">COMPETITOR A (HOME):</h5>
               <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="text-[8px] font-bold block mb-1">Choose Dept (For SecZim category):</label>
+                  <label className="text-[8px] font-bold block mb-1">Choose Team (For SecZim category):</label>
                   <select
                     value={newGameHomeId}
                     onChange={(e) => setNewGameHomeId(e.target.value)}
@@ -816,7 +850,7 @@ export default function ResultsAdmin({
               <h5 className="text-[10px] font-black uppercase mb-2 text-brand-dark-light">COMPETITOR B (AWAY):</h5>
               <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="text-[8px] font-bold block mb-1">Choose Dept (For SecZim category):</label>
+                  <label className="text-[8px] font-bold block mb-1">Choose Team (For SecZim category):</label>
                   <select
                     value={newGameAwayId}
                     onChange={(e) => setNewGameAwayId(e.target.value)}
@@ -860,27 +894,54 @@ export default function ResultsAdmin({
         </form>
       )}
 
-      {/* LIST COMPETING DEPARTMENTS (FOR DELETION / CREDENTIAL MONITORING) */}
+      {/* LIST COMPETING TEAMS (FOR DELETION / CREDENTIAL MONITORING) */}
       <div className="bg-white rounded-none p-4 sm:p-5 border-4 border-brand-dark">
         <h3 className="text-xs font-black uppercase tracking-widest text-brand-dark-light mb-3">
-          REGISTERED PREDICTION DEPARTMENTS ({participatingTeams.length})
+          REGISTERED PREDICTION TEAMS ({participatingTeams.length})
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {participatingTeams.map((team) => (
-            <div key={team.id} className="border-2 border-brand-dark p-3 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{team.avatar}</span>
-                <div>
-                  <h4 className="text-xs font-black uppercase text-brand-dark truncate">{team.name}</h4>
-                  <p className="text-[9px] font-mono font-black text-brand-gold uppercase mt-0.5">PIN: {team.passcode || '****'}</p>
+            <div key={team.id} className="border-2 border-brand-dark p-3 bg-slate-50 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xl shrink-0">{team.avatar}</span>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-black uppercase text-brand-dark truncate">{team.name}</h4>
+                    <p className="text-[9px] font-mono font-black text-brand-gold uppercase mt-0.5">PIN HIDDEN</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => handleDeleteTeam(team.id)}
+                  className="text-rose-600 hover:text-rose-800 p-1.5 transition-colors cursor-pointer border border-transparent hover:border-rose-300 bg-white shrink-0"
+                  title="Delete team"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => handleDeleteTeam(team.id)}
-                className="text-rose-600 hover:text-rose-800 p-1.5 transition-colors cursor-pointer border border-transparent hover:border-rose-300 bg-white"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="NEW PIN"
+                  value={teamPasscodeEdits[team.id] || ''}
+                  onChange={(e) =>
+                    setTeamPasscodeEdits((prev) => ({
+                      ...prev,
+                      [team.id]: e.target.value.replace(/\D/g, '')
+                    }))
+                  }
+                  className="min-w-0 flex-1 bg-white border-2 border-brand-dark px-2 py-1.5 text-xs font-mono tracking-widest focus:outline-none focus:border-brand-gold"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleResetTeamPasscode(team.id)}
+                  disabled={savingPasscodeTeamId === team.id || !teamPasscodeEdits[team.id]}
+                  className="text-[9px] font-black bg-brand-dark text-white hover:bg-brand-gold hover:text-brand-dark px-2 py-1.5 border-2 border-brand-dark rounded-none uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                >
+                  {savingPasscodeTeamId === team.id ? 'Saving' : 'Reset'}
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -926,7 +987,7 @@ export default function ResultsAdmin({
               const awayName = getTeamName(game.away_team_id, selectedCategory);
 
               const kickoffDate = new Date(game.kickoff);
-              const hasKickedOff = kickoffDate <= new Date(simulatedDate);
+              const hasKickedOff = kickoffDate <= new Date(currentTimeIso);
 
               return (
                 <div

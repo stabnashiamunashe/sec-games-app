@@ -33,6 +33,12 @@ export default function BracketView({
   const [authError, setAuthError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showPasscodeForm, setShowPasscodeForm] = useState(false);
+  const [currentTeamPasscode, setCurrentTeamPasscode] = useState('');
+  const [newTeamPasscode, setNewTeamPasscode] = useState('');
+  const [confirmTeamPasscode, setConfirmTeamPasscode] = useState('');
+  const [passcodeChangeMessage, setPasscodeChangeMessage] = useState('');
+  const [isChangingPasscode, setIsChangingPasscode] = useState(false);
 
   // Load authenticated team from localStorage if it matches activeTeam
   useEffect(() => {
@@ -45,6 +51,11 @@ export default function BracketView({
       setPasscode('');
       setAuthError('');
     }
+    setShowPasscodeForm(false);
+    setCurrentTeamPasscode('');
+    setNewTeamPasscode('');
+    setConfirmTeamPasscode('');
+    setPasscodeChangeMessage('');
   }, [activeTeam.id]);
 
   // Sync predictions state
@@ -87,6 +98,51 @@ export default function BracketView({
     localStorage.removeItem(`seczim_auth_team_${activeTeam.id}`);
     setPasscode('');
     setAuthError('');
+    setShowPasscodeForm(false);
+    setCurrentTeamPasscode('');
+    setNewTeamPasscode('');
+    setConfirmTeamPasscode('');
+    setPasscodeChangeMessage('');
+  };
+
+  const handleChangePasscode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasscodeChangeMessage('');
+
+    if (!/^\d{4}$/.test(currentTeamPasscode) || !/^\d{4}$/.test(newTeamPasscode)) {
+      setPasscodeChangeMessage('Current and new PINs must be exactly 4 digits.');
+      return;
+    }
+
+    if (newTeamPasscode !== confirmTeamPasscode) {
+      setPasscodeChangeMessage('New PIN confirmation does not match.');
+      return;
+    }
+
+    setIsChangingPasscode(true);
+    try {
+      const response = await fetch('/api/teams/passcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamId: activeTeam.id,
+          currentPasscode: currentTeamPasscode,
+          newPasscode: newTeamPasscode
+        })
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(data.message || 'Passcode updated successfully. Please sign in again.');
+        handleLogoutTeam();
+      } else {
+        setPasscodeChangeMessage(data.error || 'Failed to update passcode.');
+      }
+    } catch (err) {
+      setPasscodeChangeMessage('Error updating passcode.');
+    } finally {
+      setIsChangingPasscode(false);
+    }
   };
 
   // Construct a visual bracket tree using local predictions
@@ -97,7 +153,7 @@ export default function BracketView({
     return WORLD_CUP_TEAMS.find((t) => t.id === id) || null;
   };
 
-  const getDeptObj = (id: string | null): ParticipatingTeam | null => {
+  const getPredictionTeamObj = (id: string | null): ParticipatingTeam | null => {
     if (!id) return null;
     return participatingTeams.find((t) => t.id === id) || null;
   };
@@ -339,13 +395,13 @@ export default function BracketView({
             You are attempting to access predictions as <span className="font-bold font-mono text-brand-gold">{activeTeam.name.toUpperCase()}</span>
           </p>
           <p className="text-xs text-brand-dark-muted mt-2">
-            Please enter your departmental 4-digit passcode PIN to unlock predictions and submit brackets.
+            Please enter your team's 4-digit passcode PIN to unlock predictions and submit brackets.
           </p>
         </div>
 
         {/* Predictor Selector inside the auth block to switch teams */}
         <div className="border-t-2 border-brand-dark pt-4 text-left">
-          <label className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">COMPETING TEAM / DEPT:</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">COMPETING TEAM:</label>
           <select
             value={activeTeam.id}
             onChange={(e) => onChangeActiveTeam(e.target.value)}
@@ -397,11 +453,18 @@ export default function BracketView({
             </span>
           </div>
           <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wider mt-1">
-            Departmental PIN Verified • Submit edits using the Save changes button below.
+            Team PIN verified • Predictions close automatically at kickoff.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowPasscodeForm((visible) => !visible)}
+            className="text-[10px] font-black bg-white hover:bg-brand-gold text-brand-dark px-3 py-2 rounded-none uppercase tracking-widest border-2 border-brand-dark cursor-pointer transition-all flex items-center gap-1.5"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            Change PIN
+          </button>
           <button
             onClick={handleLogoutTeam}
             className="text-[10px] font-black bg-brand-dark hover:bg-brand-gold hover:text-brand-dark text-white px-3 py-2 rounded-none uppercase tracking-widest border-2 border-brand-dark cursor-pointer transition-all"
@@ -418,6 +481,63 @@ export default function BracketView({
           </button>
         </div>
       </div>
+
+      {showPasscodeForm && (
+        <form onSubmit={handleChangePasscode} className="bg-white border-4 border-brand-dark p-4 rounded-none space-y-3">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+            <KeyRound className="w-4 h-4 text-brand-gold" />
+            <h4 className="text-xs font-black uppercase tracking-widest text-brand-dark">Change Team PIN</h4>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={currentTeamPasscode}
+              onChange={(e) => setCurrentTeamPasscode(e.target.value.replace(/\D/g, ''))}
+              placeholder="CURRENT PIN"
+              className="w-full bg-slate-50 border-2 border-brand-dark px-3 py-2 text-xs font-mono tracking-widest focus:outline-none focus:bg-white"
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={newTeamPasscode}
+              onChange={(e) => setNewTeamPasscode(e.target.value.replace(/\D/g, ''))}
+              placeholder="NEW PIN"
+              className="w-full bg-slate-50 border-2 border-brand-dark px-3 py-2 text-xs font-mono tracking-widest focus:outline-none focus:bg-white"
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={confirmTeamPasscode}
+              onChange={(e) => setConfirmTeamPasscode(e.target.value.replace(/\D/g, ''))}
+              placeholder="CONFIRM NEW PIN"
+              className="w-full bg-slate-50 border-2 border-brand-dark px-3 py-2 text-xs font-mono tracking-widest focus:outline-none focus:bg-white"
+            />
+          </div>
+          {passcodeChangeMessage && (
+            <p className="text-[10px] text-rose-600 font-black uppercase">{passcodeChangeMessage}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPasscodeForm(false)}
+              className="text-[10px] font-black border-2 border-brand-dark px-3 py-2 bg-white hover:bg-slate-50 uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isChangingPasscode || !currentTeamPasscode || !newTeamPasscode || !confirmTeamPasscode}
+              className="text-[10px] font-black bg-brand-dark hover:bg-brand-gold hover:text-brand-dark text-white px-3 py-2 border-2 border-brand-dark uppercase tracking-widest disabled:opacity-50"
+            >
+              {isChangingPasscode ? 'Saving PIN...' : 'Save New PIN'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Category Toggler: FIFA vs SECZIM */}
       <div className="grid grid-cols-2 gap-1 p-1 bg-brand-dark border-2 border-brand-dark rounded-none text-center">
@@ -590,7 +710,7 @@ export default function BracketView({
       ) : (
         <div className="space-y-4">
           <div className="bg-white border-2 border-brand-dark p-3 rounded-none flex items-center justify-between">
-            <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">SECZIM DEPARTMENTAL CHAMPIONSHIP:</span>
+            <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">SECZIM TEAM CHAMPIONSHIP:</span>
             <button
               onClick={handleReset}
               className="text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 border border-brand-dark rounded-none uppercase tracking-widest cursor-pointer"
@@ -607,8 +727,8 @@ export default function BracketView({
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {seczimGames.map((game) => {
-                const homeDept = getDeptObj(game.home_team_id);
-                const awayDept = getDeptObj(game.away_team_id);
+                const homePredictionTeam = getPredictionTeamObj(game.home_team_id);
+                const awayPredictionTeam = getPredictionTeamObj(game.away_team_id);
                 const currentPrediction = currentPredictions[game.id];
                 const isLocked = game.kickoff ? new Date(game.kickoff) <= currentTime : false;
 
@@ -657,13 +777,13 @@ export default function BracketView({
                       >
                         <div
                           className="w-10 h-10 border-2 border-brand-dark flex items-center justify-center text-xl shrink-0"
-                          style={{ backgroundColor: `${homeDept?.color || '#C09138'}15` }}
+                          style={{ backgroundColor: `${homePredictionTeam?.color || '#C09138'}15` }}
                         >
-                          {homeDept?.avatar || '⚖️'}
+                          {homePredictionTeam?.avatar || '🟡'}
                         </div>
                         <div className="flex-1">
                           <p className="text-xs font-black uppercase text-brand-dark tracking-tight">
-                            {homeDept?.name || game.home_team_label || 'TBD Home'}
+                            {homePredictionTeam?.name || game.home_team_label || 'TBD Home'}
                           </p>
                           <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wider">PREDICT AS WINNER</p>
                         </div>
@@ -691,13 +811,13 @@ export default function BracketView({
                       >
                         <div
                           className="w-10 h-10 border-2 border-brand-dark flex items-center justify-center text-xl shrink-0"
-                          style={{ backgroundColor: `${awayDept?.color || '#313131'}15` }}
+                          style={{ backgroundColor: `${awayPredictionTeam?.color || '#313131'}15` }}
                         >
-                          {awayDept?.avatar || '🔍'}
+                          {awayPredictionTeam?.avatar || '⚫'}
                         </div>
                         <div className="flex-1">
                           <p className="text-xs font-black uppercase text-brand-dark tracking-tight">
-                            {awayDept?.name || game.away_team_label || 'TBD Away'}
+                            {awayPredictionTeam?.name || game.away_team_label || 'TBD Away'}
                           </p>
                           <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wider">PREDICT AS WINNER</p>
                         </div>

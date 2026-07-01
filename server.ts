@@ -5,10 +5,23 @@ import { db } from './server/db';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
   // Middleware
   app.use(express.json());
+
+  const getServerTime = () => new Date();
+
+  const isKickoffLocked = (kickoff?: string | null): boolean => {
+    if (!kickoff) return false;
+    const kickoffTime = new Date(kickoff);
+    if (Number.isNaN(kickoffTime.getTime())) return false;
+    return kickoffTime <= getServerTime();
+  };
+
+  const isFourDigitPin = (value: unknown): value is string => {
+    return typeof value === 'string' && /^\d{4}$/.test(value);
+  };
 
   // ----------------------------------------------------
   // API ENDPOINTS
@@ -29,6 +42,15 @@ async function startServer() {
     } catch (err: any) {
       res.status(500).json({ error: 'Database connection issue', details: err.message });
     }
+  });
+
+  // 1b. Authoritative server time used for prediction locks
+  app.get('/api/time', (req, res) => {
+    const now = getServerTime();
+    res.json({
+      now: now.toISOString(),
+      timezone: 'UTC'
+    });
   });
 
   // 2. Fetch Settings
@@ -98,7 +120,7 @@ async function startServer() {
     try {
       const team = db.prepare('SELECT * FROM participating_teams WHERE id = ?').get(teamId) as any;
       if (!team) {
-        return res.status(404).json({ success: false, message: 'Departmental team not found' });
+        return res.status(404).json({ success: false, message: 'Prediction team not found' });
       }
       if (team.passcode === passcode) {
         res.json({
@@ -112,8 +134,34 @@ async function startServer() {
           }
         });
       } else {
-        res.json({ success: false, message: 'Incorrect departmental passcode PIN' });
+        res.json({ success: false, message: 'Incorrect team passcode PIN' });
       }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 6b. Authenticated team passcode change
+  app.post('/api/teams/passcode', (req, res) => {
+    const { teamId, currentPasscode, newPasscode } = req.body;
+    if (!teamId || !currentPasscode || !newPasscode) {
+      return res.status(400).json({ error: 'teamId, currentPasscode, and newPasscode are required' });
+    }
+    if (!isFourDigitPin(newPasscode)) {
+      return res.status(400).json({ error: 'New passcode must be exactly 4 digits' });
+    }
+
+    try {
+      const team = db.prepare('SELECT passcode FROM participating_teams WHERE id = ?').get(teamId) as any;
+      if (!team) {
+        return res.status(404).json({ error: 'Prediction team not found' });
+      }
+      if (team.passcode !== currentPasscode) {
+        return res.status(401).json({ error: 'Current passcode is incorrect' });
+      }
+
+      db.prepare('UPDATE participating_teams SET passcode = ? WHERE id = ?').run(newPasscode, teamId);
+      res.json({ success: true, message: 'Passcode updated successfully. Please sign in again with the new PIN.' });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -194,6 +242,37 @@ async function startServer() {
       const team = db.prepare('SELECT passcode FROM participating_teams WHERE id = ?').get(teamId) as any;
       if (!team || team.passcode !== passcode) {
         return res.status(401).json({ error: 'Unauthorized: Invalid passcode PIN for team' });
+      }
+
+      const submittedPredictions = {
+        ...predictions,
+        ...(championId ? { Champion: championId } : {})
+      } as Record<string, string>;
+
+      const gameRows = db.prepare('SELECT id, kickoff FROM games').all() as { id: string; kickoff: string | null }[];
+      const gamesById = new Map(gameRows.map((game) => [game.id, game]));
+      const invalidGameIds = Object.keys(submittedPredictions).filter((gameId) => gameId !== 'Champion' && !gamesById.has(gameId));
+      if (invalidGameIds.length > 0) {
+        return res.status(400).json({ error: `Unknown game IDs: ${invalidGameIds.join(', ')}` });
+      }
+
+      const existingRows = db.prepare('SELECT game_id, predicted_winner_id FROM predictions WHERE team_id = ?').all(teamId) as any[];
+      const existingPredictions: Record<string, string> = {};
+      existingRows.forEach((row) => {
+        existingPredictions[row.game_id] = row.predicted_winner_id;
+      });
+
+      const lockedChanges = Object.entries(submittedPredictions).filter(([gameId, winnerId]) => {
+        const lockSource = gameId === 'Champion' ? gamesById.get('Final-1') : gamesById.get(gameId);
+        if (!lockSource || !isKickoffLocked(lockSource.kickoff)) return false;
+        return (winnerId || '') !== (existingPredictions[gameId] || '');
+      });
+
+      if (lockedChanges.length > 0) {
+        const lockedIds = lockedChanges.map(([gameId]) => gameId).join(', ');
+        return res.status(409).json({
+          error: `Predictions are closed for games already in play: ${lockedIds}`
+        });
       }
 
       // Start transaction
@@ -321,6 +400,29 @@ async function startServer() {
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(id, name, color, avatar, passcode, historyStr);
       res.json({ success: true, message: `Prediction team ${name} saved successfully.` });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 15b. Reset a prediction team's passcode from the admin panel
+  app.post('/api/admin/teams/passcode', verifyAdmin, (req, res) => {
+    const { teamId, newPasscode } = req.body;
+    if (!teamId || !newPasscode) {
+      return res.status(400).json({ error: 'teamId and newPasscode are required' });
+    }
+    if (!isFourDigitPin(newPasscode)) {
+      return res.status(400).json({ error: 'New passcode must be exactly 4 digits' });
+    }
+
+    try {
+      const team = db.prepare('SELECT id FROM participating_teams WHERE id = ?').get(teamId) as any;
+      if (!team) {
+        return res.status(404).json({ error: 'Prediction team not found' });
+      }
+
+      db.prepare('UPDATE participating_teams SET passcode = ? WHERE id = ?').run(newPasscode, teamId);
+      res.json({ success: true, message: 'Team passcode reset successfully.' });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

@@ -69,7 +69,8 @@ export function calculateUserScore(
   } else {
     // Fully dynamic SQL-backed game calculation!
     games.forEach(game => {
-      const actualWinnerId = actualResults[game.id] || game.winner_id;
+      const isFinished = game.finished === 'TRUE' || Boolean(actualResults[game.id]);
+      const actualWinnerId = isFinished ? (actualResults[game.id] || game.winner_id) : null;
       const predictedWinnerId = userPredictions[game.id];
 
       if (actualWinnerId && predictedWinnerId === actualWinnerId) {

@@ -24,21 +24,22 @@ export default function Leaderboard({
 }: LeaderboardProps) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
 
-  // Calculate scores for all teams dynamically using SQLite data and direct points
+  // Calculate scores from settled predictions plus admin-recorded actual points.
   const teamScores = participatingTeams.map((pTeam) => {
     const p = predictions[pTeam.id] || {};
     const breakdown = calculateUserScore(p, actualResults, games);
     
-    // Find direct sports points
+    const predictionPoints = breakdown.total;
     const teamDirectPoints = (directPoints || []).filter(dp => dp.team_id === pTeam.id);
-    const directPointsSum = teamDirectPoints.reduce((sum, item) => sum + item.points, 0);
+    const directPointsSum = teamDirectPoints.reduce((sum, item) => sum + Number(item.points || 0), 0);
 
     return {
       ...pTeam,
       breakdown,
       directPointsList: teamDirectPoints,
       directPointsSum,
-      currentPoints: breakdown.total + directPointsSum,
+      predictionPoints,
+      currentPoints: predictionPoints + directPointsSum,
     };
   });
 
@@ -50,9 +51,8 @@ export default function Leaderboard({
     const t = WORLD_CUP_TEAMS.find((team) => team.id === id);
     if (t) return `${t.flag} ${t.name}`;
 
-    // Check if it's one of the departmental team IDs
-    const dept = participatingTeams.find((p) => p.id === id);
-    return dept ? `${dept.avatar} ${dept.name}` : id;
+    const predictionTeam = participatingTeams.find((p) => p.id === id);
+    return predictionTeam ? `${predictionTeam.avatar} ${predictionTeam.name}` : id;
   };
 
   const toggleExpand = (teamId: string) => {
@@ -73,7 +73,7 @@ export default function Leaderboard({
               Championship Standings
             </h2>
             <p className="text-brand-gold text-xs font-bold uppercase tracking-widest mt-1">
-              Live Bracket & Corporate Games leaderboard
+              Current points from settled predictions and admin-recorded actual awards
             </p>
           </div>
           <div className="bg-brand-dark-medium p-3 rounded-none border-2 border-brand-dark-light text-[10px] font-mono text-brand-dark-slate space-y-1">
@@ -133,7 +133,7 @@ export default function Leaderboard({
                           </span>
                         )}
                       </h3>
-                      <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wider">TAP TO EXPAND SPLIT</p>
+                      <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wider">TAP TO EXPAND POINT HISTORY</p>
                     </div>
                   </div>
 
@@ -163,7 +163,7 @@ export default function Leaderboard({
                     >
                       <div className="p-4 sm:p-6 space-y-4 border-l-8" style={{ borderLeftColor: colorClass }}>
                         {/* Quick points split - Geometric blocks */}
-                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">SCORE SPLIT BREAKDOWN</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">PREDICTION POINTS BREAKDOWN</span>
                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
                           <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
                             <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">R32</span>
@@ -188,6 +188,21 @@ export default function Leaderboard({
                           <div className="bg-brand-gold-pale p-2 rounded-none border-2 border-brand-gold">
                             <span className="text-[9px] text-brand-dark font-black uppercase tracking-widest block">SecZim</span>
                             <span className="text-sm font-black text-brand-dark font-mono">{team.breakdown.SecZim}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">Prediction Points</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.predictionPoints}</span>
+                          </div>
+                          <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">Actual Awards</span>
+                            <span className="text-sm font-black text-brand-dark font-mono">{team.directPointsSum}</span>
+                          </div>
+                          <div className="bg-brand-dark p-2 rounded-none border-2 border-brand-dark">
+                            <span className="text-[9px] text-brand-gold uppercase font-black tracking-widest block">Current Total</span>
+                            <span className="text-sm font-black text-white font-mono">{team.currentPoints}</span>
                           </div>
                         </div>
 
@@ -227,7 +242,7 @@ export default function Leaderboard({
                             <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                               <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark flex items-center gap-1.5">
                                 <Trophy className="w-4 h-4 text-brand-gold" />
-                                Direct Sports Awards (Chess, Cards, etc.)
+                                Actual Points Awards
                               </span>
                               <span className="text-[10px] font-mono font-black text-brand-gold bg-brand-dark px-2 py-0.5">
                                 TOTAL: +{team.directPointsSum} PTS
