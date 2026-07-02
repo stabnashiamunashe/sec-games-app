@@ -1,16 +1,17 @@
-import React from 'react';
-import { ParticipatingTeam, ScorePrediction } from '../types';
-import { calculateUserScore } from '../utils/scoring';
-import { motion } from 'motion/react';
-import { TrendingUp, CalendarCheck } from 'lucide-react';
+import React from "react";
+import { ParticipatingTeam, ScorePrediction, PointsConfig } from "../types";
+import { calculateUserScore } from "../utils/scoring";
+import { motion } from "motion/react";
+import { TrendingUp, CalendarCheck } from "lucide-react";
 
 interface SummaryViewProps {
   participatingTeams: ParticipatingTeam[];
-  predictions: Record<string, Record<string, string>>; // teamId -> Record<matchId, teamId>
+  predictions: Record<string, Record<string, string>>;
   scorePredictions: Record<string, Record<string, ScorePrediction>>;
   actualResults: Record<string, string>;
-  games: any[]; // SQLite games list
-  directPoints?: any[]; // optional list of direct point awards
+  games: any[];
+  directPoints?: any[];
+  pointsConfig: PointsConfig;
 }
 
 export default function SummaryView({
@@ -20,20 +21,35 @@ export default function SummaryView({
   actualResults,
   games = [],
   directPoints = [],
+  pointsConfig,
 }: SummaryViewProps) {
-  // Compile totals for each team using database games list and direct points
   const teamsWithTotals = participatingTeams.map((pTeam) => {
     const p = predictions[pTeam.id] || {};
     const scorePicks = scorePredictions[pTeam.id] || {};
-    const breakdown = calculateUserScore(p, actualResults, games, scorePicks);
-    
-    // Sum direct sports points
-    const teamDirectPoints = (directPoints || []).filter(dp => dp.team_id === pTeam.id);
-    const directPointsSum = teamDirectPoints.reduce((sum, item) => sum + Number(item.points || 0), 0);
+
+    // NOW USING THE DYNAMIC CONFIG PROVIDED BY THE DB
+    const breakdown = calculateUserScore(
+      p,
+      actualResults,
+      games,
+      scorePicks,
+      pointsConfig,
+    );
+
+    const teamDirectPoints = (directPoints || []).filter(
+      (dp) => dp.team_id === pTeam.id,
+    );
+    const directPointsSum = teamDirectPoints.reduce(
+      (sum, item) => sum + Number(item.points || 0),
+      0,
+    );
 
     const currentSeasonPoints = breakdown.total + directPointsSum;
 
-    const historyPoints = pTeam.cumulativeHistory.reduce((sum, item) => sum + item.points, 0);
+    const historyPoints = pTeam.cumulativeHistory.reduce(
+      (sum, item) => sum + item.points,
+      0,
+    );
     const grandTotal = historyPoints + currentSeasonPoints;
 
     return {
@@ -41,46 +57,58 @@ export default function SummaryView({
       currentSeasonPoints,
       historyPoints,
       grandTotal,
-      predictionsCount: Object.keys(p).filter((key) => key !== 'Champion' && p[key]).length,
-      championPick: p['Champion'] || null,
+      predictionsCount: Object.keys(p).filter(
+        (key) => key !== "Champion" && p[key],
+      ).length,
+      championPick: p["Champion"] || null,
     };
   });
 
-  // Sort by current season points for the live standings view.
-  const sortedByCurrent = [...teamsWithTotals].sort((a, b) => b.currentSeasonPoints - a.currentSeasonPoints);
+  const sortedByCurrent = [...teamsWithTotals].sort(
+    (a, b) => b.currentSeasonPoints - a.currentSeasonPoints,
+  );
 
   return (
     <div className="space-y-6" id="summary-view-section">
-      {/* Dynamic Summary Cards - SecZim style */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Current Season Standings Card */}
         <div className="bg-white rounded-none p-5 sm:p-6 border-4 border-brand-dark shadow-none space-y-4">
           <div className="flex items-center gap-2 border-b-2 border-slate-200 pb-2">
             <TrendingUp className="text-brand-gold w-5 h-5 shrink-0" />
-            <h3 className="font-black text-brand-dark text-lg uppercase tracking-tight font-sans">Current Season Standings</h3>
+            <h3 className="font-black text-brand-dark text-lg uppercase tracking-tight font-sans">
+              Current Season Standings
+            </h3>
           </div>
           <p className="text-xs font-bold uppercase tracking-wider text-brand-dark-muted">
-            Starts at zero and updates from settled predictions plus admin-recorded actual points.
+            Live score totals using the active dynamic points configuration.
           </p>
 
           <div className="space-y-5 pt-2">
             {sortedByCurrent.map((team, index) => {
-              const maxCurrentTotal = Math.max(...teamsWithTotals.map((t) => t.currentSeasonPoints)) || 1;
-              const percentage = (team.currentSeasonPoints / maxCurrentTotal) * 100;
+              const maxCurrentTotal =
+                Math.max(
+                  ...teamsWithTotals.map((t) => t.currentSeasonPoints),
+                ) || 1;
+              const percentage =
+                (team.currentSeasonPoints / maxCurrentTotal) * 100;
 
               return (
                 <div key={team.id} className="space-y-2">
                   <div className="flex justify-between items-center text-sm font-black uppercase tracking-tight">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-brand-gold font-mono w-4">#{index + 1}</span>
-                      <span className="text-brand-dark">{team.avatar} {team.name}</span>
+                      <span className="text-xs font-black text-brand-gold font-mono w-4">
+                        #{index + 1}
+                      </span>
+                      <span className="text-brand-dark">
+                        {team.avatar} {team.name}
+                      </span>
                     </div>
                     <span className="font-black text-brand-dark font-mono">
-                      {team.currentSeasonPoints} <span className="text-[10px] text-brand-dark-muted">PTS</span>
+                      {team.currentSeasonPoints}{" "}
+                      <span className="text-[10px] text-brand-dark-muted">
+                        PTS
+                      </span>
                     </span>
                   </div>
-                  {/* Progress bar - Square Theme */}
                   <div className="w-full bg-slate-100 h-4 rounded-none border-2 border-brand-dark overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
@@ -90,10 +118,16 @@ export default function SummaryView({
                       style={{ backgroundColor: team.color }}
                     ></motion.div>
                   </div>
-                  {/* Year breakdown text */}
                   <div className="flex justify-between text-[10px] font-mono text-brand-dark-muted px-1">
-                    <span>PREVIOUS SEASONS: {team.cumulativeHistory.map(h => `${h.season} (${h.points}p)`).join(', ') || 'NONE'}</span>
-                    <span className="text-brand-gold font-black">CURRENT: {team.currentSeasonPoints}P</span>
+                    <span>
+                      PREVIOUS SEASONS:{" "}
+                      {team.cumulativeHistory
+                        .map((h) => `${h.season} (${h.points}p)`)
+                        .join(", ") || "NONE"}
+                    </span>
+                    <span className="text-brand-gold font-black">
+                      CURRENT: {team.currentSeasonPoints}P
+                    </span>
                   </div>
                 </div>
               );
@@ -101,11 +135,12 @@ export default function SummaryView({
           </div>
         </div>
 
-        {/* Account Profiles */}
         <div className="bg-white rounded-none p-5 sm:p-6 border-4 border-brand-dark shadow-none space-y-4">
           <div className="flex items-center gap-2 border-b-2 border-slate-200 pb-2">
             <CalendarCheck className="text-brand-gold w-5 h-5 shrink-0" />
-            <h3 className="font-black text-brand-dark text-lg uppercase tracking-tight font-sans">Team Profiles</h3>
+            <h3 className="font-black text-brand-dark text-lg uppercase tracking-tight font-sans">
+              Team Profiles
+            </h3>
           </div>
           <p className="text-xs font-bold uppercase tracking-wider text-brand-dark-muted">
             Team profile snapshot and current prediction activity.
@@ -130,9 +165,14 @@ export default function SummaryView({
                           {team.name}
                         </h4>
                         <div className="flex items-center gap-2 text-[10px] font-mono text-brand-dark-muted font-bold">
-                          <span>PREDICTIONS MADE: {teamData?.predictionsCount || 0}</span>
+                          <span>
+                            PREDICTIONS MADE: {teamData?.predictionsCount || 0}
+                          </span>
                           <span>•</span>
-                          <span>CURRENT POINTS: {teamData?.currentSeasonPoints || 0} PTS</span>
+                          <span>
+                            CURRENT POINTS: {teamData?.currentSeasonPoints || 0}{" "}
+                            PTS
+                          </span>
                         </div>
                       </div>
                     </div>

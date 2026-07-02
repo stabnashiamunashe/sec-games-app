@@ -61,22 +61,22 @@ async function startServer() {
   };
 
   const STADIUM_ID_TO_UTC_OFFSET_HOURS: Record<string, number> = {
-    "1": -6, // Estadio Azteca, Mexico City — fixed UTC-6, no DST since 2023
-    "2": -6, // Estadio Akron, Guadalajara — fixed UTC-6
-    "3": -6, // Estadio BBVA, Monterrey — fixed UTC-6
-    "4": -5, // AT&T Stadium, Dallas — US Central, CDT (DST active in Jun/Jul)
-    "5": -5, // NRG Stadium, Houston — CDT
-    "6": -5, // Arrowhead Stadium, Kansas City — CDT
-    "7": -4, // Mercedes-Benz Stadium, Atlanta — EDT
-    "8": -4, // Hard Rock Stadium, Miami — EDT
-    "9": -4, // Gillette Stadium, Boston — EDT
-    "10": -4, // Lincoln Financial Field, Philadelphia — EDT
-    "11": -4, // MetLife Stadium, NY/NJ — EDT
-    "12": -4, // BMO Field, Toronto — EDT
-    "13": -7, // BC Place, Vancouver — PDT
-    "14": -7, // Lumen Field, Seattle — PDT
-    "15": -7, // Levi's Stadium, SF Bay Area — PDT
-    "16": -7, // SoFi Stadium, Los Angeles — PDT
+    "1": -6,
+    "2": -6,
+    "3": -6,
+    "4": -5,
+    "5": -5,
+    "6": -5,
+    "7": -4,
+    "8": -4,
+    "9": -4,
+    "10": -4,
+    "11": -4,
+    "12": -4,
+    "13": -7,
+    "14": -7,
+    "15": -7,
+    "16": -7,
   };
 
   const parseLocalDateToUtcIso = (
@@ -201,7 +201,6 @@ async function startServer() {
   // API ENDPOINTS
   // ----------------------------------------------------
 
-  // 1. Database status
   app.get("/api/status", (req, res) => {
     try {
       const teamCount = db
@@ -224,7 +223,6 @@ async function startServer() {
     }
   });
 
-  // 1b. Authoritative server time used for prediction locks
   app.get("/api/time", (req, res) => {
     const now = getServerTime();
     console.log("[API TIME] now=", now.toISOString(), "timezone=UTC");
@@ -234,7 +232,6 @@ async function startServer() {
     });
   });
 
-  // 2. Fetch Settings
   app.get("/api/settings", (req, res) => {
     try {
       const rows = db.prepare("SELECT key, value FROM settings").all() as {
@@ -253,7 +250,6 @@ async function startServer() {
     }
   });
 
-  // 3. Update simulated date
   app.post("/api/settings/simulated-date", (req, res) => {
     const { simulated_date } = req.body;
     if (!simulated_date) {
@@ -269,7 +265,6 @@ async function startServer() {
     }
   });
 
-  // 4. Update active tournament category
   app.post("/api/settings/category", (req, res) => {
     const { active_category } = req.body;
     if (!active_category) {
@@ -285,7 +280,6 @@ async function startServer() {
     }
   });
 
-  // 5. Fetch Prediction Teams (with scores calculated dynamically on the server or fetched)
   app.get("/api/teams", (req, res) => {
     try {
       const teams = db
@@ -303,7 +297,6 @@ async function startServer() {
     }
   });
 
-  // 6. Authenticate Prediction Team Login
   app.post("/api/teams/login", (req, res) => {
     const { teamId, passcode } = req.body;
     if (!teamId || !passcode) {
@@ -339,7 +332,6 @@ async function startServer() {
     }
   });
 
-  // 6b. Authenticated team passcode change
   app.post("/api/teams/passcode", (req, res) => {
     const { teamId, currentPasscode, newPasscode } = req.body;
     if (!teamId || !currentPasscode || !newPasscode) {
@@ -377,7 +369,6 @@ async function startServer() {
     }
   });
 
-  // 7. Admin Login
   app.post("/api/admin/login", (req, res) => {
     const { password } = req.body;
     try {
@@ -397,7 +388,6 @@ async function startServer() {
     }
   });
 
-  // 8. Fetch all Games (or by category)
   app.get("/api/games", (req, res) => {
     const { category } = req.query;
     try {
@@ -419,7 +409,6 @@ async function startServer() {
     }
   });
 
-  // 9. Fetch all Predictions (flattened for easy use in leaderboard)
   app.get("/api/predictions", (req, res) => {
     try {
       const rows = db
@@ -441,7 +430,6 @@ async function startServer() {
     }
   });
 
-  // 10. Fetch Single Team predictions
   app.get("/api/predictions/:teamId", (req, res) => {
     const { teamId } = req.params;
     try {
@@ -461,7 +449,6 @@ async function startServer() {
     }
   });
 
-  // 10b. Fetch all score predictions separately from winner picks
   app.get("/api/score-predictions", (req, res) => {
     try {
       const rows = db
@@ -500,7 +487,6 @@ async function startServer() {
     }
   });
 
-  // 10c. Fetch a single team's score predictions
   app.get("/api/score-predictions/:teamId", (req, res) => {
     const { teamId } = req.params;
     try {
@@ -534,7 +520,6 @@ async function startServer() {
     }
   });
 
-  // 11. Save Predictions (Locked by authentication)
   app.post("/api/predictions", (req, res) => {
     const {
       teamId,
@@ -566,7 +551,6 @@ async function startServer() {
     }
 
     try {
-      // Validate passcode
       const team = db
         .prepare("SELECT passcode FROM participating_teams WHERE id = ?")
         .get(teamId) as any;
@@ -691,7 +675,6 @@ async function startServer() {
         });
       }
 
-      // Start transaction
       const insertPred = db.prepare(`
         INSERT OR REPLACE INTO predictions (
           team_id,
@@ -794,7 +777,6 @@ async function startServer() {
     }
   };
 
-  // 12. Update game details or score
   app.post("/api/admin/games/score", verifyAdmin, (req, res) => {
     const { gameId, home_score, away_score, winner_id, finished } = req.body;
     if (!gameId) return res.status(400).json({ error: "gameId is required" });
@@ -827,7 +809,6 @@ async function startServer() {
     }
   });
 
-  // 13. Create a custom game
   app.post("/api/admin/games/add", verifyAdmin, (req, res) => {
     const {
       id,
@@ -867,7 +848,6 @@ async function startServer() {
     }
   });
 
-  // 14. Delete a game
   app.post("/api/admin/games/delete", verifyAdmin, (req, res) => {
     const { gameId } = req.body;
     if (!gameId) return res.status(400).json({ error: "gameId is required" });
@@ -881,7 +861,6 @@ async function startServer() {
     }
   });
 
-  // 15. Create or Edit a prediction team
   app.post("/api/admin/teams/save", verifyAdmin, (req, res) => {
     const { id, name, color, avatar, passcode, cumulativeHistory } = req.body;
     if (!id || !name || !color || !avatar || !passcode) {
@@ -905,7 +884,6 @@ async function startServer() {
     }
   });
 
-  // 15b. Reset a prediction team's passcode from the admin panel
   app.post("/api/admin/teams/passcode", verifyAdmin, (req, res) => {
     const { teamId, newPasscode } = req.body;
     if (!teamId || !newPasscode) {
@@ -936,7 +914,6 @@ async function startServer() {
     }
   });
 
-  // 16. Delete a prediction team
   app.post("/api/admin/teams/delete", verifyAdmin, (req, res) => {
     const { teamId } = req.body;
     if (!teamId) return res.status(400).json({ error: "teamId is required" });
@@ -953,7 +930,6 @@ async function startServer() {
     }
   });
 
-  // 16b. Fetch direct points (Non-prediction actual games like Chess, Card Games, etc.)
   app.get("/api/direct-points", (req, res) => {
     try {
       const rows = db
@@ -967,7 +943,6 @@ async function startServer() {
     }
   });
 
-  // 16c. Add direct points award (Admin restricted)
   app.post("/api/admin/direct-points/add", verifyAdmin, (req, res) => {
     const { team_id, game_name, points } = req.body;
     if (!team_id || !game_name || points === undefined || points === null) {
@@ -995,7 +970,6 @@ async function startServer() {
     }
   });
 
-  // 16d. Delete direct points award (Admin restricted)
   app.post("/api/admin/direct-points/delete", verifyAdmin, (req, res) => {
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: "id is required" });
@@ -1011,7 +985,28 @@ async function startServer() {
     }
   });
 
-  // 17. World Cup Live Sync Proxy
+  // 16e. Update Points Configuration (Admin restricted)
+  app.post("/api/admin/settings/points", verifyAdmin, (req, res) => {
+    const { points_config } = req.body;
+    if (!points_config || typeof points_config !== "object") {
+      return res
+        .status(400)
+        .json({ error: "points_config object is required" });
+    }
+
+    try {
+      db.prepare(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+      ).run("points_config", JSON.stringify(points_config));
+      res.json({
+        success: true,
+        message: "Points configuration updated successfully.",
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/worldcup-live-sync", async (req, res) => {
     try {
       const response = await fetch("https://worldcup26.ir/get/games");
@@ -1046,9 +1041,6 @@ async function startServer() {
     }
   });
 
-  // ----------------------------------------------------
-  // VITE OR STATIC ASSETS
-  // ----------------------------------------------------
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

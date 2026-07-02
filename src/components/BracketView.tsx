@@ -6,6 +6,7 @@ import {
   Team,
   ParticipatingTeam,
   ScorePrediction,
+  PointsConfig,
 } from "../types";
 import {
   WORLD_CUP_TEAMS,
@@ -23,10 +24,11 @@ import {
   RefreshCw,
   Trophy,
 } from "lucide-react";
+import Twemoji from "react-twemoji";
 
 interface BracketViewProps {
   activeTeam: ParticipatingTeam;
-  predictions: Record<string, string>; // matchId -> winnerId
+  predictions: Record<string, string>;
   scorePredictions: Record<string, ScorePrediction>;
   onSavePredictions: (
     teamId: string,
@@ -36,7 +38,8 @@ interface BracketViewProps {
   participatingTeams: ParticipatingTeam[];
   onChangeActiveTeam: (teamId: string) => void;
   currentTime: Date;
-  games: any[]; // SQLite games list
+  games: any[];
+  pointsConfig: PointsConfig; // Add this line
 }
 
 export default function BracketView({
@@ -48,6 +51,7 @@ export default function BracketView({
   onChangeActiveTeam,
   currentTime,
   games = [],
+  pointsConfig,
 }: BracketViewProps) {
   const [selectedStage, setSelectedStage] = useState<Stage>("R32");
   const [currentPredictions, setCurrentPredictions] = useState<
@@ -60,7 +64,6 @@ export default function BracketView({
     "world_cup" | "seczim_games"
   >("world_cup");
 
-  // Authentication State
   const [passcode, setPasscode] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -73,7 +76,6 @@ export default function BracketView({
   const [passcodeChangeMessage, setPasscodeChangeMessage] = useState("");
   const [isChangingPasscode, setIsChangingPasscode] = useState(false);
 
-  // Load authenticated team from localStorage if it matches activeTeam
   useEffect(() => {
     const cachedAuth = localStorage.getItem(
       `seczim_auth_team_${activeTeam.id}`,
@@ -93,7 +95,6 @@ export default function BracketView({
     setPasscodeChangeMessage("");
   }, [activeTeam.id]);
 
-  // Sync predictions state
   useEffect(() => {
     setCurrentPredictions({ ...predictions });
   }, [predictions, activeTeam.id]);
@@ -102,7 +103,6 @@ export default function BracketView({
     setCurrentScorePredictions({ ...scorePredictions });
   }, [scorePredictions, activeTeam.id]);
 
-  // Handle Authentication submit
   const handleAuthenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passcode) return;
@@ -192,7 +192,6 @@ export default function BracketView({
     }
   };
 
-  // Construct a visual bracket tree using local predictions
   const visualBracket = propagateBracketWinners(
     createInitialBracket(),
     currentPredictions,
@@ -251,7 +250,6 @@ export default function BracketView({
 
   const isMatchLocked = (gameId: string, kickoff?: string) => {
     const game = gameMap.get(gameId);
-    // A finished game is always locked, regardless of kickoff time.
     if (game?.finished === "TRUE") return true;
     return kickoff ? isKickoffLocked(kickoff, currentTime) : false;
   };
@@ -294,17 +292,46 @@ export default function BracketView({
       homeScore: null,
       awayScore: null,
     };
+
+    const game = gameMap.get(gameId);
+
+    const gameData = gameMap.get(gameId);
+    const actualHome = gameData?.home_score;
+    const actualAway = gameData?.away_score;
+    const isSettled = gameData?.finished === "TRUE";
     const isLocked = isMatchLocked(gameId, kickoff);
 
+    // DYNAMICALLY DETERMINE POINTS BASED ON ROUND/CATEGORY
+    const stage = gameData?.stage || "R32";
+    const category = gameData?.category || "world_cup";
+
+    let oneExact: number;
+    let exactScoreline: number;
+
+    if (category === "seczim_games") {
+      oneExact = pointsConfig.SecZim_oneExactScore;
+      exactScoreline = pointsConfig.SecZim_exactScoreline;
+    } else {
+      oneExact = pointsConfig[
+        `${stage}_oneExactScore` as keyof PointsConfig
+      ] as number;
+      exactScoreline = pointsConfig[
+        `${stage}_exactScoreline` as keyof PointsConfig
+      ] as number;
+    }
+
     return (
-      <div className="mt-2 border-2 border-slate-200 bg-slate-50 p-2.5 rounded-none">
-        <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="mt-2 border-2 border-slate-200 bg-slate-50 p-2.5 rounded-none space-y-3">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-[9px] font-black uppercase tracking-widest text-brand-dark-muted">
-            Optional score guess
+            Score prediction
           </span>
-          <span className="text-[9px] font-mono font-black text-brand-gold">
-            +2.5 / +5
-          </span>
+          {/* RENDER DYNAMIC VALUES INSTEAD OF "CHECK CONFIG" */}
+          <div className="flex items-center gap-2 text-[9px] font-mono font-black text-brand-gold">
+            <span>+{oneExact} (1 Score)</span>
+            <span>/</span>
+            <span>+{exactScoreline} (Perfect)</span>
+          </div>
         </div>
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <label className="min-w-0">
@@ -327,7 +354,6 @@ export default function BracketView({
                 )
               }
               className="mt-1 w-full h-10 rounded-none border-2 border-brand-dark bg-white text-center font-mono text-lg font-black text-brand-dark focus:outline-none focus:bg-brand-gold-bg disabled:bg-slate-100 disabled:text-slate-400"
-              aria-label={`${homeLabel} score prediction`}
             />
           </label>
           <span className="pb-2 text-xs font-black text-brand-dark-muted">
@@ -353,15 +379,25 @@ export default function BracketView({
                 )
               }
               className="mt-1 w-full h-10 rounded-none border-2 border-brand-dark bg-white text-center font-mono text-lg font-black text-brand-dark focus:outline-none focus:bg-brand-gold-bg disabled:bg-slate-100 disabled:text-slate-400"
-              aria-label={`${awayLabel} score prediction`}
             />
           </label>
         </div>
+
+        {isSettled &&
+          actualHome !== null &&
+          actualHome !== undefined &&
+          actualAway !== null &&
+          actualAway !== undefined && (
+            <div className="mt-2 text-center flex items-center justify-center">
+              <span className="text-[10px] bg-brand-dark text-brand-gold font-mono font-black uppercase tracking-widest px-3 py-1.5 border-2 border-brand-dark w-full">
+                Actual Score: {actualHome} - {actualAway}
+              </span>
+            </div>
+          )}
       </div>
     );
   };
 
-  // Trigger Save to database
   const savePredictionsToDb = async (
     updated: Record<string, string>,
     updatedScores: Record<string, ScorePrediction> = currentScorePredictions,
@@ -388,7 +424,6 @@ export default function BracketView({
       if (response.ok) {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
-        // Dispatch save to parent to update local state
         await onSavePredictions(activeTeam.id, updated, updatedScores);
       } else {
         const errData = await response.json();
@@ -401,11 +436,9 @@ export default function BracketView({
     }
   };
 
-  // Select predicted winner of a World Cup Match
   const handleSelectWinner = (matchId: string, winnerId: string | null) => {
     if (!winnerId) return;
 
-    // Check locking based on match kickoff
     const matched = [
       ...visualBracket.R32,
       ...visualBracket.R16,
@@ -424,7 +457,6 @@ export default function BracketView({
       updated["Champion"] = winnerId;
     }
 
-    // Propagation cleansing
     const tempBracket = propagateBracketWinners(
       createInitialBracket(),
       updated,
@@ -481,7 +513,6 @@ export default function BracketView({
     setCurrentPredictions(cleanPredictions);
   };
 
-  // Select predicted winner of custom SecZim game
   const handleSelectSecZimWinner = (
     gameId: string,
     winnerId: string,
@@ -499,7 +530,6 @@ export default function BracketView({
     }));
   };
 
-  // Quick auto-fill World Cup bracket
   const handleQuickFill = () => {
     const randomGuesses: Record<string, string> = { ...currentPredictions };
 
@@ -600,7 +630,6 @@ export default function BracketView({
       updated["Champion"] = "";
     }
 
-    // Also reset SecZim games predictions if they haven't started
     games
       .filter((g) => g.category === "seczim_games")
       .forEach((g) => {
@@ -642,7 +671,6 @@ export default function BracketView({
 
   const seczimGames = games.filter((g) => g.category === "seczim_games");
 
-  // RENDER PASSCODE ACCESS GATE IF NOT AUTHENTICATED
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto bg-white border-4 border-brand-dark rounded-none p-6 sm:p-8 space-y-6 text-center shadow-none">
@@ -651,7 +679,7 @@ export default function BracketView({
         </div>
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight text-brand-dark">
-            Predictor Dashboard Locked
+            Dashboard Locked
           </h2>
           <p className="text-xs text-brand-dark-light mt-2 uppercase tracking-wide">
             You are attempting to access predictions as{" "}
@@ -665,7 +693,6 @@ export default function BracketView({
           </p>
         </div>
 
-        {/* Predictor Selector inside the auth block to switch teams */}
         <div className="border-t-2 border-brand-dark pt-4 text-left">
           <label className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">
             COMPETING TEAM:
@@ -715,10 +742,8 @@ export default function BracketView({
     );
   }
 
-  // RENDER PRIMARY PREDICTIONS DASHBOARD (AUTHENTICATED)
   return (
     <div className="space-y-6" id="predictions-bracket-section">
-      {/* Upper Status & Controls */}
       <div className="bg-white rounded-none p-4 sm:p-5 border-4 border-brand-dark shadow-none flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -835,7 +860,6 @@ export default function BracketView({
         </form>
       )}
 
-      {/* Category Toggler: FIFA vs SECZIM */}
       <div className="grid grid-cols-2 gap-1 p-1 bg-brand-dark border-2 border-brand-dark rounded-none text-center">
         <button
           onClick={() => setActiveCategory("world_cup")}
@@ -865,10 +889,8 @@ export default function BracketView({
         </div>
       )}
 
-      {/* RENDER DYNAMIC PREDICTIONS WRAPPERS BASED ON CATEGORY */}
       {activeCategory === "world_cup" ? (
         <div className="space-y-6">
-          {/* Quick Actions Bar */}
           <div className="bg-white border-2 border-brand-dark p-3 rounded-none flex items-center justify-between gap-4 flex-wrap">
             <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">
               WORLD CUP BRACKET TREE:
@@ -889,7 +911,6 @@ export default function BracketView({
             </div>
           </div>
 
-          {/* Bracket Stage Selector */}
           <div className="flex bg-slate-200 p-1 border-2 border-brand-dark rounded-none overflow-x-auto gap-1">
             {stagesList.map((stage) => {
               const isActive = selectedStage === stage.id;
@@ -905,14 +926,13 @@ export default function BracketView({
                 >
                   {stage.label}
                   <span className="block text-[8px] font-bold mt-0.5 opacity-60">
-                    {stage.count} {stage.count === 1 ? "MATCH" : "MATCH"}
+                    {stage.count} MATCH{stage.count === 1 ? "" : "ES"}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Dynamic Champion Header */}
           {selectedStage === "Final" && (
             <div className="bg-brand-gold text-brand-dark rounded-none p-5 border-4 border-brand-dark text-center space-y-3 shadow-none max-w-md mx-auto">
               <h4 className="text-xs font-black uppercase tracking-widest text-brand-dark flex items-center justify-center gap-2 font-sans">
@@ -921,8 +941,12 @@ export default function BracketView({
               {visualBracket.ChampionId ? (
                 <div className="space-y-2">
                   <div className="text-3xl font-black font-sans uppercase tracking-tight">
-                    {getTeamObj(visualBracket.ChampionId)?.flag}{" "}
-                    {getTeamObj(visualBracket.ChampionId)?.name}
+                    <Twemoji>
+                      <span>
+                        {getTeamObj(visualBracket.ChampionId)?.flag}{" "}
+                        {getTeamObj(visualBracket.ChampionId)?.name}
+                      </span>
+                    </Twemoji>
                   </div>
                   <p className="text-[9px] font-bold uppercase tracking-widest bg-brand-dark text-white px-3 py-1.5 inline-block">
                     YOUR CHOSEN CHAMPION
@@ -936,7 +960,6 @@ export default function BracketView({
             </div>
           )}
 
-          {/* FIFA Bracket Match Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getActiveStageMatches().map((match) => {
               const homeTeam = getTeamObj(match.homeTeamId);
@@ -951,7 +974,6 @@ export default function BracketView({
                     isLocked ? "opacity-85 bg-slate-50" : ""
                   }`}
                 >
-                  {/* Card Header Info */}
                   <div className="bg-brand-dark text-white px-3 py-2 flex justify-between items-center text-[9px] font-mono">
                     <span className="font-black tracking-widest uppercase">
                       {match.id} - {selectedStage}
@@ -967,9 +989,7 @@ export default function BracketView({
                     </span>
                   </div>
 
-                  {/* Prediction Selectors */}
                   <div className="p-3 space-y-2">
-                    {/* Home Team */}
                     <button
                       onClick={() =>
                         handleSelectWinner(match.id, match.homeTeamId)
@@ -984,16 +1004,19 @@ export default function BracketView({
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        {homeTeam
-                          ? `${homeTeam.flag} ${homeTeam.name}`
-                          : match.homeTeamLabel || "TBD (Previous Winner)"}
+                        {homeTeam ? (
+                          <Twemoji>
+                            <span>{`${homeTeam.flag} ${homeTeam.name}`}</span>
+                          </Twemoji>
+                        ) : (
+                          match.homeTeamLabel || "TBD (Previous Winner)"
+                        )}
                       </span>
                       {currentPrediction === match.homeTeamId && (
                         <Check className="w-4 h-4 text-brand-gold shrink-0 stroke-[3px]" />
                       )}
                     </button>
 
-                    {/* Away Team */}
                     <button
                       onClick={() =>
                         handleSelectWinner(match.id, match.awayTeamId)
@@ -1008,9 +1031,13 @@ export default function BracketView({
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        {awayTeam
-                          ? `${awayTeam.flag} ${awayTeam.name}`
-                          : match.awayTeamLabel || "TBD (Previous Winner)"}
+                        {awayTeam ? (
+                          <Twemoji>
+                            <span>{`${awayTeam.flag} ${awayTeam.name}`}</span>
+                          </Twemoji>
+                        ) : (
+                          match.awayTeamLabel || "TBD (Previous Winner)"
+                        )}
                       </span>
                       {currentPrediction === match.awayTeamId && (
                         <Check className="w-4 h-4 text-brand-gold shrink-0 stroke-[3px]" />
@@ -1043,7 +1070,6 @@ export default function BracketView({
             </button>
           </div>
 
-          {/* SECZIM SPORTS GALA GAMES LIST */}
           {seczimGames.length === 0 ? (
             <div className="bg-white rounded-none border-2 border-brand-dark p-8 text-center text-sm font-bold text-brand-dark-muted">
               No SecZim sports matches have been added yet by the administrator.
@@ -1067,7 +1093,6 @@ export default function BracketView({
                       isLocked ? "opacity-85 bg-slate-50" : ""
                     }`}
                   >
-                    {/* Game Header */}
                     <div className="bg-brand-dark text-white px-4 py-2 flex justify-between items-center text-xs">
                       <div>
                         <span className="bg-brand-gold text-brand-dark text-[9px] font-black px-1.5 py-0.5 uppercase tracking-widest mr-2 inline-block">
@@ -1088,9 +1113,7 @@ export default function BracketView({
                       </span>
                     </div>
 
-                    {/* Match Grid layout */}
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Left Block - Predict Home */}
                       <div
                         onClick={() => {
                           if (!isLocked && game.home_team_id) {
@@ -1136,7 +1159,6 @@ export default function BracketView({
                         )}
                       </div>
 
-                      {/* Right Block - Predict Away */}
                       <div
                         onClick={() => {
                           if (!isLocked && game.away_team_id) {

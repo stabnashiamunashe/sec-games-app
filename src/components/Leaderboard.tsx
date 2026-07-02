@@ -1,10 +1,6 @@
 import React, { useState } from "react";
-import { ParticipatingTeam, ScorePrediction } from "../types";
-import {
-  calculateUserScore,
-  POINT_VALUES,
-  SCORE_BONUS_VALUES,
-} from "../utils/scoring";
+import { ParticipatingTeam, ScorePrediction, PointsConfig } from "../types";
+import { calculateUserScore } from "../utils/scoring";
 import { WORLD_CUP_TEAMS } from "../data/teams";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -12,19 +8,20 @@ import {
   Award,
   ChevronDown,
   ChevronUp,
-  Info,
   Activity,
   ShieldCheck,
 } from "lucide-react";
+import Twemoji from "react-twemoji";
 
 interface LeaderboardProps {
   participatingTeams: ParticipatingTeam[];
-  predictions: Record<string, Record<string, string>>; // teamId -> Record<matchId, teamId>
+  predictions: Record<string, Record<string, string>>;
   scorePredictions: Record<string, Record<string, ScorePrediction>>;
   actualResults: Record<string, string>;
   onSelectTeamPredictor: (teamId: string) => void;
-  games: any[]; // SQLite games array
-  directPoints?: any[]; // optional list of direct point awards
+  games: any[];
+  directPoints?: any[];
+  pointsConfig: PointsConfig;
 }
 
 export default function Leaderboard({
@@ -35,14 +32,21 @@ export default function Leaderboard({
   onSelectTeamPredictor,
   games = [],
   directPoints = [],
+  pointsConfig,
 }: LeaderboardProps) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
 
-  // Calculate scores from settled predictions plus admin-recorded actual points.
   const teamScores = participatingTeams.map((pTeam) => {
     const p = predictions[pTeam.id] || {};
     const scorePicks = scorePredictions[pTeam.id] || {};
-    const breakdown = calculateUserScore(p, actualResults, games, scorePicks);
+    // NOW USING THE DYNAMIC CONFIG PROVIDED BY THE DB
+    const breakdown = calculateUserScore(
+      p,
+      actualResults,
+      games,
+      scorePicks,
+      pointsConfig,
+    );
 
     const predictionPoints = breakdown.total;
     const teamDirectPoints = (directPoints || []).filter(
@@ -63,7 +67,6 @@ export default function Leaderboard({
     };
   });
 
-  // Sort by score (descending)
   const sortedTeams = [...teamScores].sort(
     (a, b) => b.currentPoints - a.currentPoints,
   );
@@ -85,7 +88,6 @@ export default function Leaderboard({
 
   return (
     <div className="space-y-6" id="leaderboard-section">
-      {/* Header Info - SecZim Branded */}
       <div className="bg-brand-dark p-5 sm:p-6 text-white border-4 border-brand-dark rounded-none relative overflow-hidden">
         <div className="absolute right-0 top-0 opacity-10 font-black text-6xl uppercase tracking-tighter select-none pointer-events-none">
           SECZIM
@@ -98,44 +100,28 @@ export default function Leaderboard({
             </h2>
             <p className="text-brand-gold text-xs font-bold uppercase tracking-widest mt-1">
               Current points from settled predictions, score-guess bonuses, and
-              admin-recorded actual awards
+              actual awards
             </p>
           </div>
           <div className="bg-brand-dark-medium p-3 rounded-none border-2 border-brand-dark-light text-[10px] font-mono text-brand-dark-slate space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 bg-brand-gold"></span>
-              <span>
-                R32: {POINT_VALUES.R32} PTS | R16: {POINT_VALUES.R16} PTS
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-brand-gold-light"></span>
-              <span>
-                QF: {POINT_VALUES.QF} PTS | SF: {POINT_VALUES.SF} PTS
-              </span>
+              <span>BASE ROUND WINS: SCALED DYNAMICALLY BY ROUND</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 bg-white"></span>
               <span>
-                SECZIM CORPORATE GAMES: {POINT_VALUES.SecZim} PTS EACH
+                SECZIM CORPORATE GAMES: {pointsConfig.SecZim} PTS EACH
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 bg-emerald-400"></span>
-              <span>SCORE GUESSES: +2.5 ONE CORRECT / +5 BOTH CORRECT</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-emerald-400"></span>
-              <span>
-                SCORE BONUS: +{SCORE_BONUS_VALUES.oneExactScore} ONE SIDE | +
-                {SCORE_BONUS_VALUES.exactScoreline} EXACT
-              </span>
+              <span>SCORE GUESSES: BONUS SCALED BY ADMIN RULES</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Leaderboard List - Square Geometric Rows */}
       <div className="bg-white rounded-none border-4 border-brand-dark shadow-none overflow-hidden">
         <div className="divide-y-2 divide-brand-dark">
           {sortedTeams.map((team, index) => {
@@ -152,23 +138,17 @@ export default function Leaderboard({
                   className="flex items-center justify-between p-4 sm:p-5 cursor-pointer select-none border-l-8"
                   style={{ borderLeftColor: colorClass }}
                   onClick={() => toggleExpand(team.id)}
-                  id={`leaderboard-row-${team.id}`}
                 >
                   <div className="flex items-center gap-3 sm:gap-4">
-                    {/* Rank */}
                     <div className="flex items-center justify-center w-8 h-8 font-black text-lg bg-brand-dark text-white rounded-none font-sans">
                       {index + 1}
                     </div>
-
-                    {/* Avatar Badge */}
                     <div
                       className="w-10 h-10 rounded-none flex items-center justify-center text-xl font-bold border-2 border-brand-dark"
                       style={{ backgroundColor: `${colorClass}15` }}
                     >
                       {team.avatar}
                     </div>
-
-                    {/* Team Name */}
                     <div>
                       <h3 className="font-black text-brand-dark text-base flex items-center gap-2 uppercase tracking-tight">
                         {team.name}
@@ -183,8 +163,6 @@ export default function Leaderboard({
                       </p>
                     </div>
                   </div>
-
-                  {/* Points display */}
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <span className="text-2xl sm:text-3xl font-black text-brand-dark font-mono">
@@ -204,7 +182,6 @@ export default function Leaderboard({
                   </div>
                 </div>
 
-                {/* Expanded Predictions Breakdown */}
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
@@ -218,7 +195,6 @@ export default function Leaderboard({
                         className="p-4 sm:p-6 space-y-4 border-l-8"
                         style={{ borderLeftColor: colorClass }}
                       >
-                        {/* Quick points split - Geometric blocks */}
                         <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">
                           PREDICTION POINTS BREAKDOWN
                         </span>
@@ -273,7 +249,7 @@ export default function Leaderboard({
                           </div>
                           <div className="bg-emerald-50 p-2 rounded-none border-2 border-emerald-500">
                             <span className="text-[9px] text-emerald-800 font-black uppercase tracking-widest block">
-                              Score
+                              Score Bonus
                             </span>
                             <span className="text-sm font-black text-brand-dark font-mono">
                               {team.breakdown.ScoreBonus}
@@ -308,7 +284,6 @@ export default function Leaderboard({
                           </div>
                         </div>
 
-                        {/* Predicted Champion Section */}
                         <div className="bg-white p-4 rounded-none border-2 border-brand-dark flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <Award className="text-brand-gold w-5 h-5 shrink-0" />
@@ -317,11 +292,15 @@ export default function Leaderboard({
                                 Predicted World Cup Champion
                               </span>
                               <span className="font-black text-brand-dark text-sm sm:text-base">
-                                {getTeamName(
-                                  predictions[team.id]?.["Champion"] ||
-                                    predictions[team.id]?.["Final-1"] ||
-                                    null,
-                                ).toUpperCase()}
+                                <Twemoji>
+                                  <span className="uppercase">
+                                    {getTeamName(
+                                      predictions[team.id]?.["Champion"] ||
+                                        predictions[team.id]?.["Final-1"] ||
+                                        null,
+                                    )}
+                                  </span>
+                                </Twemoji>
                               </span>
                             </div>
                           </div>
@@ -331,7 +310,7 @@ export default function Leaderboard({
                                 predictions[team.id]?.["Final-1"]) ===
                               actualResults["Final-1"] ? (
                                 <span className="flex items-center gap-1 text-brand-dark text-xs font-black bg-brand-gold px-3 py-1 rounded-none uppercase tracking-wider">
-                                  Correct (+100)
+                                  Correct Champion (+{pointsConfig.Final})
                                 </span>
                               ) : (
                                 <span className="flex items-center gap-1 text-white text-xs font-black bg-brand-dark-muted px-3 py-1 rounded-none uppercase tracking-wider">
@@ -346,13 +325,12 @@ export default function Leaderboard({
                           </div>
                         </div>
 
-                        {/* Direct Points / Achievements Section (Chess, Cards, etc.) */}
                         {team.directPointsList &&
                           team.directPointsList.length > 0 && (
                             <div className="bg-white p-4 rounded-none border-2 border-brand-dark space-y-2">
                               <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark flex items-center gap-1.5">
-                                  <Trophy className="w-4 h-4 text-brand-gold" />
+                                  <Trophy className="w-4 h-4 text-brand-gold" />{" "}
                                   Actual Points Awards
                                 </span>
                                 <span className="text-[10px] font-mono font-black text-brand-gold bg-brand-dark px-2 py-0.5">
@@ -373,11 +351,7 @@ export default function Leaderboard({
                                         Awarded:{" "}
                                         {new Date(
                                           dp.date_awarded,
-                                        ).toLocaleDateString(undefined, {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })}
+                                        ).toLocaleDateString()}
                                       </span>
                                     </div>
                                     <span className="font-mono font-black text-brand-dark bg-brand-gold-pale px-2.5 py-1 border border-brand-gold text-xs shrink-0">
@@ -389,7 +363,6 @@ export default function Leaderboard({
                             </div>
                           )}
 
-                        {/* View Prediction Tree Button */}
                         <div className="flex justify-end pt-1">
                           <button
                             onClick={() => onSelectTeamPredictor(team.id)}
@@ -409,62 +382,25 @@ export default function Leaderboard({
         </div>
       </div>
 
-      {/* Rules Card */}
       <div className="bg-brand-dark text-white rounded-none p-5 sm:p-6 border-4 border-brand-dark">
         <h4 className="text-sm font-black uppercase tracking-widest text-brand-gold flex items-center gap-2 mb-3 font-sans">
           <ShieldCheck className="w-5 h-5 text-brand-gold" />
           Scoring Rules Reference
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
-          <div className="space-y-2 font-mono text-brand-dark-slate md:border-r border-brand-dark-medium md:pr-4">
-            <div className="flex justify-between">
-              <span>FIFA R32 MATCH CORRECTNESS:</span>
-              <span className="text-brand-gold font-bold">
-                +{POINT_VALUES.R32} PTS EACH
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>FIFA R16 MATCH CORRECTNESS:</span>
-              <span className="text-brand-gold font-bold">
-                +{POINT_VALUES.R16} PTS EACH
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>FIFA QUARTERFINALS CORRECTNESS:</span>
-              <span className="text-brand-gold font-bold">
-                +{POINT_VALUES.QF} PTS EACH
-              </span>
-            </div>
-          </div>
+        <div className="text-xs font-sans">
           <div className="space-y-2 font-mono text-brand-dark-slate">
-            <div className="flex justify-between">
-              <span>FIFA SEMIFINALS CORRECTNESS:</span>
-              <span className="text-brand-gold font-bold">
-                +{POINT_VALUES.SF} PTS EACH
-              </span>
-            </div>
-            <div className="flex justify-between text-brand-gold font-black">
-              <span>FIFA WORLD CUP FINAL WINNER:</span>
-              <span>+{POINT_VALUES.Final} PTS</span>
-            </div>
-            <div className="flex justify-between text-white font-black">
-              <span>SECZIM CORPORATE GAME CORRECTNESS:</span>
-              <span className="text-brand-gold">
-                +{POINT_VALUES.SecZim} PTS EACH
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>ONE TEAM SCORE EXACT:</span>
-              <span className="text-brand-gold font-bold">
-                +{SCORE_BONUS_VALUES.oneExactScore} PTS
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>EXACT SCORELINE:</span>
-              <span className="text-brand-gold font-bold">
-                +{SCORE_BONUS_VALUES.exactScoreline} PTS TOTAL
-              </span>
-            </div>
+            <p>
+              Scoring points per round (R32, R16, QF, SF, Final, and Custom
+              Games) and score bonuses are entirely configurable dynamically by
+              Tournament Administrators through the{" "}
+              <span className="text-brand-gold font-bold">Admin Panel</span>.
+            </p>
+            <p className="mt-2 text-[10px] text-brand-dark-gray border-t border-brand-dark-medium pt-2">
+              The calculations updating this leaderboard take into account the
+              exact settings configured. If an administrator updates points for
+              a specific round or exact score rules, those points apply to all
+              successfully recorded predictions retroactively.
+            </p>
           </div>
         </div>
       </div>

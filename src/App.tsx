@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { ParticipatingTeam, ScorePrediction } from "./types";
+import { ParticipatingTeam, ScorePrediction, PointsConfig } from "./types";
+import { DEFAULT_POINTS_CONFIG } from "./utils/scoring";
 import Leaderboard from "./components/Leaderboard";
 import BracketView from "./components/BracketView";
 import ResultsAdmin from "./components/ResultsAdmin";
@@ -13,12 +14,6 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 
-// Stable, module-level fallbacks. Using `{}` literals inline as prop
-// fallbacks (e.g. `predictions[id] || {}`) creates a NEW object on every
-// render, which breaks referential-equality checks in child components
-// (e.g. a useEffect keyed on the `predictions` prop) and can wipe out
-// unsaved local edits whenever the parent re-renders for unrelated reasons
-// (like the periodic /api/time poll). Reusing the same reference avoids that.
 const EMPTY_PREDICTIONS: Record<string, string> = {};
 const EMPTY_SCORE_PREDICTIONS: Record<string, ScorePrediction> = {};
 
@@ -40,6 +35,12 @@ export default function App() {
     {},
   );
   const [directPoints, setDirectPoints] = useState<any[]>([]);
+
+  // GLOBAL POINTS CONFIG STATE
+  const [globalPointsConfig, setGlobalPointsConfig] = useState<PointsConfig>(
+    DEFAULT_POINTS_CONFIG,
+  );
+
   const [activeTeamId, setActiveTeamId] = useState<string>("compliance");
   const [currentTimeIso, setCurrentTimeIso] = useState<string>(() =>
     new Date().toISOString(),
@@ -53,7 +54,6 @@ export default function App() {
       const timeRes = await fetch("/api/time");
       if (timeRes.ok) {
         const timeData = await timeRes.json();
-        console.log("[TIME API] server time:", timeData);
         if (timeData.now) setCurrentTimeIso(timeData.now);
       }
     } catch (err) {
@@ -61,25 +61,30 @@ export default function App() {
     }
   };
 
-  // Load all persistent data from the full-stack database
   const loadDatabaseData = async () => {
     try {
       await refreshServerTime();
 
-      // 2. Fetch Teams
+      // Fetch Global Settings (including Points Config)
+      const settingsRes = await fetch("/api/settings");
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        if (settings.points_config) {
+          setGlobalPointsConfig(JSON.parse(settings.points_config));
+        }
+      }
+
       const teamsRes = await fetch("/api/teams");
       if (teamsRes.ok) {
         const teamsData = await teamsRes.json();
         setParticipatingTeams(teamsData);
       }
 
-      // 3. Fetch Games
       const gamesRes = await fetch("/api/games");
       if (gamesRes.ok) {
         const gamesData = await gamesRes.json();
         setGames(gamesData);
 
-        // Extract actual results dynamically from the games finished status
         const extractedResults: Record<string, string> = {};
         gamesData.forEach((g: any) => {
           if (g.finished === "TRUE" && g.winner_id) {
@@ -89,7 +94,6 @@ export default function App() {
         setActualResults(extractedResults);
       }
 
-      // 4. Fetch Predictions
       const predsRes = await fetch("/api/predictions");
       if (predsRes.ok) {
         const predsData = await predsRes.json();
@@ -102,7 +106,6 @@ export default function App() {
         setScorePredictions(scorePredsData);
       }
 
-      // 5. Fetch Direct non-prediction points
       const directPointsRes = await fetch("/api/direct-points");
       if (directPointsRes.ok) {
         const dpData = await directPointsRes.json();
@@ -122,7 +125,6 @@ export default function App() {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  // Sync with live World Cup API via secure server proxy
   const handleLiveSync = async () => {
     setApiSyncStatus("syncing");
     try {
@@ -139,12 +141,8 @@ export default function App() {
       const response = await fetch("/api/worldcup-live-sync");
       if (!response.ok) throw new Error("Proxy failed: " + response.status);
       const data = await response.json();
-      console.log("[LIVE SYNC] proxy result:", data);
 
       if (data && Array.isArray(data.games)) {
-        const apiResults: Record<string, string> = {};
-
-        // Match up mapping
         const mapApiIdToInternalId = (apiId: string, type: string): string => {
           const numericId = parseInt(apiId);
           if (type === "r32" || (numericId >= 73 && numericId <= 88))
@@ -194,7 +192,6 @@ export default function App() {
             }
           }
         }
-
         setApiSyncStatus("synced");
         await loadDatabaseData();
       } else {
@@ -206,13 +203,11 @@ export default function App() {
     }
   };
 
-  // Local state dispatch for predictions updates
   const handleSavePredictionsState = async (
     teamId: string,
     updatedPredictions: Record<string, string>,
     updatedScorePredictions?: Record<string, ScorePrediction>,
   ): Promise<boolean> => {
-    // Refresh global state from database
     await loadDatabaseData();
     return true;
   };
@@ -223,7 +218,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col antialiased border-4 sm:border-8 border-brand-dark bg-brand-gold-bg/40">
-      {/* Brand Identity Navigation Header */}
       <header className="bg-brand-dark text-white p-5 sm:p-6 flex justify-between items-center border-b-4 border-brand-dark relative">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-white rounded-none flex items-center justify-center border-2 border-white select-none shadow-sm overflow-hidden">
@@ -243,7 +237,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Competitor Account Badge */}
         {activeTeam && (
           <div className="flex items-center space-x-3 sm:space-x-4">
             <div className="text-right hidden sm:block">
@@ -261,10 +254,8 @@ export default function App() {
         )}
       </header>
 
-      {/* Main Content Viewport */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
         <div className="space-y-6">
-          {/* Tournament Clock / Live Sync */}
           <div className="bg-brand-dark text-white p-4 border-4 border-brand-dark flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-brand-gold rounded-none text-brand-dark shrink-0">
@@ -300,7 +291,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Time refresh & sync buttons */}
             <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
               <button
                 onClick={refreshServerTime}
@@ -320,7 +310,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Tab Menu - Corporate Grid Layout */}
           <div className="grid grid-cols-4 gap-1 p-1 bg-brand-dark-border border-2 border-brand-dark rounded-none">
             <button
               onClick={() => setActiveTab("leaderboard")}
@@ -371,7 +360,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Dynamic Component Outlet */}
           <div className="min-h-[400px]">
             {activeTab === "leaderboard" && participatingTeams.length > 0 && (
               <Leaderboard
@@ -381,6 +369,7 @@ export default function App() {
                 actualResults={actualResults}
                 games={games}
                 directPoints={directPoints}
+                pointsConfig={globalPointsConfig}
                 onSelectTeamPredictor={(teamId) => {
                   setActiveTeamId(teamId);
                   setActiveTab("predict");
@@ -400,6 +389,7 @@ export default function App() {
                 onChangeActiveTeam={(teamId) => setActiveTeamId(teamId)}
                 currentTime={new Date(currentTimeIso)}
                 games={games}
+                pointsConfig={globalPointsConfig} // Pass the state here
               />
             )}
 
@@ -427,13 +417,13 @@ export default function App() {
                 actualResults={actualResults}
                 games={games}
                 directPoints={directPoints}
+                pointsConfig={globalPointsConfig}
               />
             )}
           </div>
         </div>
       </main>
 
-      {/* Small Ambient Footer */}
       <footer className="bg-brand-dark text-white border-t-4 border-brand-dark py-6 text-center text-xs font-bold uppercase tracking-wider mt-12">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans text-brand-dark-slate">
           <span>Securities & Exchange Commission of Zimbabwe</span>

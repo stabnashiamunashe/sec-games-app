@@ -1,6 +1,6 @@
-# SecZim Games Predictor Admin Guide
+# SecZim Games Admin Guide
 
-This guide is for administrators who manage the SecZim Games Predictor.
+This guide is for administrators who manage the SecZim Games.
 
 It focuses only on admin tasks: signing in, settling results, managing teams, resetting PINs, adding games, and awarding actual points.
 
@@ -187,14 +187,6 @@ Current team PINs are hidden in the admin list by design ("PIN HIDDEN").
 Team names are managed by admins.
 
 The current admin screen does not have a simple inline rename button. To rename a team, ask technical support to update it directly, or delete and re-register the team (note that deleting a team also deletes its predictions, so re-registering means predictions must be re-entered).
-
-Recommended team names should be neutral, for example:
-
-- Team Gold
-- Team Onyx
-- Team Copper
-- Team Slate
-- Team Ivory
 
 ## 13. Awarding Actual Points
 

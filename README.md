@@ -10,7 +10,7 @@ View your app in AI Studio: https://ai.studio/apps/1f1dd1c9-fb4e-48e2-b4a4-6353f
 
 ## User Manuals
 
-For plain-language guides to using the SecZim Games Predictor, see:
+For plain-language guides to using the SecZim Games , see:
 
 - [TEAM_MANUAL.md](TEAM_MANUAL.md) for team users.
 - [ADMIN_MANUAL.md](ADMIN_MANUAL.md) for administrators.
@@ -18,8 +18,7 @@ For plain-language guides to using the SecZim Games Predictor, see:
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`

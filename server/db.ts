@@ -106,6 +106,36 @@ if (!hasActiveCategory) {
   );
 }
 
+const hasPointsConfig = db
+  .prepare("SELECT 1 FROM settings WHERE key = ?")
+  .get("points_config");
+
+if (!hasPointsConfig) {
+  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run(
+    "points_config",
+    JSON.stringify({
+      R32: 5,
+      R16: 5,
+      QF: 5,
+      SF: 5,
+      Final: 5,
+      SecZim: 5,
+      R32_oneExactScore: 7.5,
+      R32_exactScoreline: 15,
+      R16_oneExactScore: 7.5,
+      R16_exactScoreline: 15,
+      QF_oneExactScore: 7.5,
+      QF_exactScoreline: 15,
+      SF_oneExactScore: 7.5,
+      SF_exactScoreline: 15,
+      Final_oneExactScore: 7.5,
+      Final_exactScoreline: 15,
+      SecZim_oneExactScore: 7.5,
+      SecZim_exactScoreline: 15,
+    }),
+  );
+}
+
 // Seed Prediction Teams
 const teamCount = db
   .prepare("SELECT COUNT(*) as count FROM participating_teams")
@@ -203,10 +233,6 @@ if (gameCount.count === 0) {
     ["15", "26"], // R32-16: Australia vs Egypt
   ];
 
-  // NOTE: these are true UTC kickoff instants (local venue time converted
-  // using each stadium's UTC offset), not the raw local kickoff time with a
-  // "Z" appended. See STADIUM_ID_TO_UTC_OFFSET_HOURS in server.ts for the
-  // per-stadium offsets used to derive these.
   const r32Kickoffs = [
     "2026-06-28T19:00:00Z",
     "2026-06-29T20:30:00Z",
@@ -246,7 +272,7 @@ if (gameCount.count === 0) {
     });
   });
 
-  // 2. Round of 16 (8 matches) — true UTC kickoff instants
+  // 2. Round of 16 (8 matches)
   const r16Kickoffs = [
     "2026-07-04T21:00:00Z",
     "2026-07-04T17:00:00Z",
@@ -282,7 +308,7 @@ if (gameCount.count === 0) {
     });
   }
 
-  // 3. Quarter-finals (4 matches) — true UTC kickoff instants
+  // 3. Quarter-finals (4 matches)
   const qfKickoffs = [
     "2026-07-09T20:00:00Z",
     "2026-07-10T19:00:00Z",
@@ -310,7 +336,7 @@ if (gameCount.count === 0) {
     });
   }
 
-  // 4. Semi-finals (2 matches) — true UTC kickoff instants
+  // 4. Semi-finals (2 matches)
   const sfKickoffs = ["2026-07-14T19:00:00Z", "2026-07-15T19:00:00Z"];
   const sfLabels = [
     ["Winner Match 97", "Winner Match 98"],
@@ -340,17 +366,16 @@ if (gameCount.count === 0) {
     away_team_id: null,
     home_team_label: "Winner Match 101",
     away_team_label: "Winner Match 102",
-    kickoff: "2026-07-19T19:00:00Z", // true UTC kickoff instant
+    kickoff: "2026-07-19T19:00:00Z",
     finished: "FALSE",
     winner_id: null,
   });
 
-  // Seed standard preset outcomes for World Cup R32 from earlier API sync (for realism)
   const seedApiOutcomes: Record<string, string> = {
-    "R32-1": "5", // Canada beat South Africa (Match 73)
-    "R32-2": "14", // Paraguay beat Germany (Match 74)
-    "R32-3": "10", // Morocco beat Netherlands (Match 75)
-    "R32-4": "9", // Brazil beat Japan (Match 76)
+    "R32-1": "5",
+    "R32-2": "14",
+    "R32-3": "10",
+    "R32-4": "9",
   };
 
   Object.entries(seedApiOutcomes).forEach(([mId, winnerId]) => {

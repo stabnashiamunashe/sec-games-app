@@ -1,4 +1,4 @@
-# SecZim Games Predictor Manuals
+# SecZim Games Manuals
 
 There are separate manuals for the two main audiences.
 
