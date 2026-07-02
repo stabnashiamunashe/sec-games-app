@@ -36,6 +36,11 @@ export interface UserPrediction {
   championId: string | null;
 }
 
+export interface ScorePrediction {
+  homeScore: number | null;
+  awayScore: number | null;
+}
+
 export interface SeasonTotal {
   season: string; // e.g. "2022", "2024", "2026"
   points: number;

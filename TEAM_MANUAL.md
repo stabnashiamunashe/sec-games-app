@@ -11,8 +11,11 @@ As a team user, you can:
 - View the current standings.
 - Log in to your team's prediction desk.
 - Pick winners for available games.
+- Optionally guess game scores for bonus points.
 - Save predictions before games start.
 - See which games are locked.
+- Use Auto-Fill to randomly fill in remaining World Cup bracket picks.
+- Use Reset to clear your own unlocked picks.
 - Change your team's PIN after logging in.
 - Check how your team's points are calculated.
 
@@ -23,16 +26,13 @@ You cannot:
 - Award actual points.
 - Reset other teams' PINs.
 - Change the admin password.
+- Change your own team's name (ask an administrator).
 
 ## 2. Opening The App
 
 Open the SecZim Games Site through the intranet.
 
-```text
-http://localhost:3001
-```
-
-If the app is hosted somewhere else, use the address given by the organiser or technical support person.
+You can access it through the WorkQuest tile in Sharepoint.
 
 ## 3. Main Tabs For Teams
 
@@ -49,19 +49,24 @@ Shows current standings and team profile information.
 
 The Settle/Admin tab is for administrators only.
 
+You'll also see a **Championship Lock Clock** bar at the top of every tab, showing the current server time (converted to CAT for you) and a **Sync World Cup** button. That sync button only works for administrators — if you click it, it'll prompt you to sign in as admin. It's not something your team needs to use.
+
 ## 4. Understanding The Lock Clock
 
-The top of the app shows the server UTC time.
+The top of the app shows the current time in CAT (Central Africa Time), labelled the Championship Lock Clock.
 
-This is the official time used to close predictions.
+Underneath, the app actually uses server UTC time to decide when to close predictions — the CAT time shown to you is just that same UTC time converted for easier reading.
 
-When the server time reaches a game's kickoff time, that game's predictions are locked.
+A game's predictions close as soon as either of these happens:
+
+- The server clock reaches that game's kickoff time, **or**
+- An administrator officially settles the game's result — this locks it immediately even if kickoff technically hasn't arrived yet in the app's records (this mainly matters if a kickoff time was entered incorrectly).
 
 Once a game is locked:
 
 - You can still view it.
 - You can still see an existing prediction.
-- You cannot change or submit a new prediction for that game.
+- You cannot change or submit a new prediction or score guess for that game.
 
 ## 5. Viewing Standings
 
@@ -79,6 +84,7 @@ Click or tap a team row to expand it.
 The expanded view shows:
 
 - Prediction points.
+- Score bonus points.
 - Actual award points.
 - Current total.
 - Round-by-round prediction points.
@@ -87,10 +93,13 @@ The expanded view shows:
 
 ## 6. How Points Work
 
-Current points are made from two sources.
+Current points are made from three parts.
 
 Prediction points:
 Points your team earns for correctly predicting winners of settled games.
+
+Score bonus points:
+Extra points your team earns for guessing scores exactly.
 
 Actual award points:
 Points an administrator enters for games or activities that were not recorded as prediction games.
@@ -107,21 +116,34 @@ Examples of actual award points:
 
 | Game type                        | Points for a correct prediction |
 | -------------------------------- | ------------------------------: |
-| World Cup Round of 32            |                       10 points |
-| World Cup Round of 16            |                       20 points |
-| World Cup Quarterfinal           |                       40 points |
-| World Cup Semifinal              |                       60 points |
-| World Cup Final winner           |                      100 points |
-| SecZim corporate game prediction |                       20 points |
+| World Cup Round of 32            |                        5 points |
+| World Cup Round of 16            |                        5 points |
+| World Cup Quarterfinal           |                        5 points |
+| World Cup Semifinal              |                        5 points |
+| World Cup Final winner           |                        5 points |
+| SecZim corporate game prediction |                        5 points |
 
-Actual award points do not use this table. They are added manually by an administrator.
+Every round is currently worth the same flat 5 points for a correct winner pick — predicting the Final correctly is not worth more than predicting a Round of 32 game correctly.
+
+Optional score guesses can add bonus points after a game is settled:
+
+| Score guess result                     | Bonus points |
+| -------------------------------------- | -----------: |
+| One team's score is exactly correct    |   2.5 points |
+| Both teams' scores are exactly correct |     5 points |
+
+The exact scoreline bonus is 5 points total, not 2.5 plus 5. Score guesses must be whole numbers from 0 to 99.
+
+Actual award points do not use this table. They are added manually by an administrator, and can be any amount the organiser chooses.
+
+Predicting the eventual Champion is shown on the Standings and Summary tabs for interest, but does not currently earn any extra points on its own — your points come from correctly picking the winner of each individual game along the way.
 
 ## 8. Logging In To Predict
 
 1. Open the Predict Desk tab.
 2. Select your team.
 3. Enter your team's 4-digit PIN.
-4. Click Verify Passcode.
+4. Click **Verify Passcode**.
 
 If the PIN is correct, your team's prediction desk will unlock.
 
@@ -136,41 +158,44 @@ After logging in:
    - SecZim Corporate Sports
 2. Find the game you want to predict.
 3. Click the team you think will win.
-4. Repeat for each available game.
+4. Optionally enter the score you expect for either team or both teams (whole numbers from 0 to 99).
+5. Repeat for each available game.
 
 Your selected winner will be highlighted.
 
-If a game is locked, you cannot change that prediction.
+If a game is locked, you cannot change that prediction or score guess.
 
 ## 10. Saving Predictions
 
 After making or changing predictions:
 
-1. Click Save Changes.
+1. Click **Save Changes**.
 2. Re-enter your team PIN when asked.
 3. Confirm the save.
 
 The extra PIN check helps prevent accidental or unauthorised saves.
 
+**Important: your picks are only saved to the server when you click Save Changes and confirm your PIN.** Until then, they exist only in your browser. If you navigate away, close the tab, or leave the page open and idle for a long time without saving, unsaved picks can be lost. Save often, especially if you're making a lot of picks in one sitting.
+
 If saving fails, check:
 
 - The PIN was entered correctly.
-- The game has not already started.
+- The game has not already started or been settled.
 - The app/server connection is working.
 
 ## 11. Auto-Fill And Reset
 
-The World Cup bracket may include:
+The World Cup bracket includes two helper buttons:
 
-Auto-Fill Matches:
-Randomly fills available unlocked matches.
+**Auto-Fill Matches:**
+Randomly fills in winners for any _unlocked_ World Cup bracket games you haven't picked yet, then propagates those picks through to later rounds. This only affects the World Cup bracket — it does not touch SecZim Corporate Sports predictions.
 
-Reset Bracket:
-Clears unlocked predictions.
+**Reset Bracket:**
+Clears your unlocked picks for both the World Cup bracket and SecZim Corporate Sports games.
 
-These actions do not change locked games.
+Neither of these buttons changes games that are already locked.
 
-You still need to click Save Changes after using them.
+You still need to click **Save Changes** after using either button — they only update what's shown on your screen until you save.
 
 ## 12. Changing Your Team PIN
 
@@ -180,11 +205,11 @@ Steps:
 
 1. Open Predict Desk.
 2. Log in with your current team PIN.
-3. Click Change PIN.
+3. Click **Change PIN**.
 4. Enter the current PIN.
 5. Enter the new 4-digit PIN.
 6. Confirm the new 4-digit PIN.
-7. Click Save New PIN.
+7. Click **Save New PIN**.
 
 After the PIN changes, your team will be signed out. Log in again using the new PIN.
 
@@ -210,7 +235,13 @@ Why does my team have zero points?
 That is normal at the start. Points appear only after predictions are correct for settled games or after admins award actual points.
 
 Why can I see a game but not change my prediction?
-The game has probably started. Predictions close at kickoff.
+Either the game has started (predictions close at kickoff), or an admin has already settled its official result — settling locks a game immediately, even if you think kickoff hasn't happened yet.
+
+Do I have to guess the score?
+No. Score guesses are optional, but correct score guesses can earn bonus points.
+
+Does predicting the champion earn extra points?
+Not directly — it's shown for interest on the Standings/Summary tabs, but your points come from correctly picking each individual game's winner.
 
 Can my team change another team's predictions?
 No. Each team can only access its own prediction desk.
@@ -223,6 +254,9 @@ Team names are managed by administrators.
 
 What if we forget our PIN?
 Ask an administrator to reset it.
+
+What's that "Sync World Cup" button at the top for?
+It's an admin-only tool for pulling in official World Cup results automatically. Your team doesn't need to use it, and clicking it will just prompt an admin sign-in.
 
 ## 15. Troubleshooting For Teams
 
@@ -238,9 +272,17 @@ Problem: My prediction did not save.
 
 Try:
 
-- Check that the game is not locked.
+- Check that the game is not locked (started, or already settled).
 - Re-enter the PIN when saving.
 - Refresh the page and try again.
+- Make sure you actually clicked Save Changes and confirmed your PIN — unsaved on-screen picks don't count.
+
+Problem: My picks disappeared before I saved them.
+
+Try:
+
+- This can happen if you leave the page open and idle for a while without saving — save your picks as you go rather than making a large batch and saving at the very end.
+- Re-enter your picks and click Save Changes promptly.
 
 Problem: Points look wrong.
 
@@ -249,12 +291,14 @@ Try:
 - Refresh the page.
 - Open Standings and expand your team row.
 - Check prediction points and actual award points separately.
+- Check the score bonus line in the expanded standings row.
+- Remember every round is worth a flat 5 points per correct pick, and score bonuses are 2.5/5 points — not the older graduated scale some earlier documentation described.
 - Ask an admin to confirm official results and actual point awards.
 
 ## 16. Good Practices For Teams
 
 - Submit predictions before kickoff.
-- Save after making changes.
+- Save often, not just once at the end.
 - Keep your team PIN private.
 - Change the PIN if it may have been shared too widely.
 - Check Standings after admins settle results.
@@ -269,19 +313,25 @@ Current points:
 The points counted in the current competition.
 
 Kickoff:
-The scheduled start time of a game.
+The scheduled start time of a game, stored as a UTC instant and shown to you converted to CAT.
 
 Locked:
-A game state where predictions can no longer be changed.
+A game state where predictions can no longer be changed. Happens at kickoff, or immediately once an admin settles the result — whichever comes first.
 
 Prediction:
 Your team's selected winner for a game.
 
+Score bonus:
+Extra points earned when a guessed score matches the settled game score (2.5 points for one side exact, 5 points total for both sides exact).
+
 Settled:
-A game whose official result has been recorded by an administrator.
+A game whose official result has been recorded by an administrator. Settling locks the game for predictions immediately.
 
 Team PIN:
 The 4-digit code used to access your team's prediction desk.
 
+CAT:
+Central Africa Time (UTC+2) — the timezone the app displays to you, even though the server keeps time internally in UTC.
+
 UTC:
-A standard server time format used to avoid timezone confusion.
+A standard server time format used to avoid timezone confusion. The server keeps and locks against UTC time; you'll see it converted to CAT.

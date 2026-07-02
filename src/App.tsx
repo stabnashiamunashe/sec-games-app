@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ParticipatingTeam } from "./types";
+import { ParticipatingTeam, ScorePrediction } from "./types";
 import Leaderboard from "./components/Leaderboard";
 import BracketView from "./components/BracketView";
 import ResultsAdmin from "./components/ResultsAdmin";
@@ -13,6 +13,15 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 
+// Stable, module-level fallbacks. Using `{}` literals inline as prop
+// fallbacks (e.g. `predictions[id] || {}`) creates a NEW object on every
+// render, which breaks referential-equality checks in child components
+// (e.g. a useEffect keyed on the `predictions` prop) and can wipe out
+// unsaved local edits whenever the parent re-renders for unrelated reasons
+// (like the periodic /api/time poll). Reusing the same reference avoids that.
+const EMPTY_PREDICTIONS: Record<string, string> = {};
+const EMPTY_SCORE_PREDICTIONS: Record<string, ScorePrediction> = {};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<
     "leaderboard" | "predict" | "admin" | "summary"
@@ -22,6 +31,9 @@ export default function App() {
   >([]);
   const [predictions, setPredictions] = useState<
     Record<string, Record<string, string>>
+  >({});
+  const [scorePredictions, setScorePredictions] = useState<
+    Record<string, Record<string, ScorePrediction>>
   >({});
   const [games, setGames] = useState<any[]>([]);
   const [actualResults, setActualResults] = useState<Record<string, string>>(
@@ -41,6 +53,7 @@ export default function App() {
       const timeRes = await fetch("/api/time");
       if (timeRes.ok) {
         const timeData = await timeRes.json();
+        console.log("[TIME API] server time:", timeData);
         if (timeData.now) setCurrentTimeIso(timeData.now);
       }
     } catch (err) {
@@ -83,6 +96,12 @@ export default function App() {
         setPredictions(predsData);
       }
 
+      const scorePredsRes = await fetch("/api/score-predictions");
+      if (scorePredsRes.ok) {
+        const scorePredsData = await scorePredsRes.json();
+        setScorePredictions(scorePredsData);
+      }
+
       // 5. Fetch Direct non-prediction points
       const directPointsRes = await fetch("/api/direct-points");
       if (directPointsRes.ok) {
@@ -118,8 +137,9 @@ export default function App() {
       }
 
       const response = await fetch("/api/worldcup-live-sync");
-      if (!response.ok) throw new Error("Proxy failed");
+      if (!response.ok) throw new Error("Proxy failed: " + response.status);
       const data = await response.json();
+      console.log("[LIVE SYNC] proxy result:", data);
 
       if (data && Array.isArray(data.games)) {
         const apiResults: Record<string, string> = {};
@@ -190,6 +210,7 @@ export default function App() {
   const handleSavePredictionsState = async (
     teamId: string,
     updatedPredictions: Record<string, string>,
+    updatedScorePredictions?: Record<string, ScorePrediction>,
   ): Promise<boolean> => {
     // Refresh global state from database
     await loadDatabaseData();
@@ -268,8 +289,13 @@ export default function App() {
                   )}
                 </div>
                 <p className="text-[10px] font-mono font-bold text-brand-gold uppercase mt-0.5">
-                  SERVER UTC TIME:{" "}
-                  {new Date(currentTimeIso).toUTCString().replace("GMT", "UTC")}
+                  SERVER TIME:{" "}
+                  {new Date(currentTimeIso).toLocaleString("en-GB", {
+                    timeZone: "Africa/Harare",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}{" "}
+                  CAT
                 </p>
               </div>
             </div>
@@ -351,6 +377,7 @@ export default function App() {
               <Leaderboard
                 participatingTeams={participatingTeams}
                 predictions={predictions}
+                scorePredictions={scorePredictions}
                 actualResults={actualResults}
                 games={games}
                 directPoints={directPoints}
@@ -364,7 +391,10 @@ export default function App() {
             {activeTab === "predict" && activeTeam && (
               <BracketView
                 activeTeam={activeTeam}
-                predictions={predictions[activeTeam.id] || {}}
+                predictions={predictions[activeTeam.id] || EMPTY_PREDICTIONS}
+                scorePredictions={
+                  scorePredictions[activeTeam.id] || EMPTY_SCORE_PREDICTIONS
+                }
                 onSavePredictions={handleSavePredictionsState}
                 participatingTeams={participatingTeams}
                 onChangeActiveTeam={(teamId) => setActiveTeamId(teamId)}
@@ -393,6 +423,7 @@ export default function App() {
               <SummaryView
                 participatingTeams={participatingTeams}
                 predictions={predictions}
+                scorePredictions={scorePredictions}
                 actualResults={actualResults}
                 games={games}
                 directPoints={directPoints}

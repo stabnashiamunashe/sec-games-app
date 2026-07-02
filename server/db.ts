@@ -44,6 +44,8 @@ db.exec(`
     team_id TEXT,
     game_id TEXT,
     predicted_winner_id TEXT,
+    predicted_home_score INTEGER,
+    predicted_away_score INTEGER,
     PRIMARY KEY (team_id, game_id)
   );
 
@@ -55,6 +57,25 @@ db.exec(`
     date_awarded TEXT NOT NULL
   );
 `);
+
+const predictionColumns = db
+  .prepare("PRAGMA table_info(predictions)")
+  .all() as { name: string }[];
+const predictionColumnNames = new Set(
+  predictionColumns.map((column) => column.name),
+);
+
+if (!predictionColumnNames.has("predicted_home_score")) {
+  db.prepare(
+    "ALTER TABLE predictions ADD COLUMN predicted_home_score INTEGER",
+  ).run();
+}
+
+if (!predictionColumnNames.has("predicted_away_score")) {
+  db.prepare(
+    "ALTER TABLE predictions ADD COLUMN predicted_away_score INTEGER",
+  ).run();
+}
 
 // Seed Default Settings
 const hasAdminPass = db
@@ -182,23 +203,27 @@ if (gameCount.count === 0) {
     ["15", "26"], // R32-16: Australia vs Egypt
   ];
 
+  // NOTE: these are true UTC kickoff instants (local venue time converted
+  // using each stadium's UTC offset), not the raw local kickoff time with a
+  // "Z" appended. See STADIUM_ID_TO_UTC_OFFSET_HOURS in server.ts for the
+  // per-stadium offsets used to derive these.
   const r32Kickoffs = [
-    "2026-06-28T12:00:00Z",
-    "2026-06-29T16:30:00Z",
-    "2026-06-29T19:00:00Z",
-    "2026-06-29T12:00:00Z",
+    "2026-06-28T19:00:00Z",
+    "2026-06-29T20:30:00Z",
+    "2026-06-30T01:00:00Z",
+    "2026-06-29T17:00:00Z",
+    "2026-06-30T21:00:00Z",
     "2026-06-30T17:00:00Z",
-    "2026-06-30T12:00:00Z",
-    "2026-06-30T19:00:00Z",
-    "2026-07-01T12:00:00Z",
-    "2026-07-01T17:00:00Z",
-    "2026-07-01T13:00:00Z",
+    "2026-07-01T01:00:00Z",
+    "2026-07-01T16:00:00Z",
+    "2026-07-02T00:00:00Z",
+    "2026-07-01T20:00:00Z",
+    "2026-07-02T23:00:00Z",
     "2026-07-02T19:00:00Z",
-    "2026-07-02T12:00:00Z",
-    "2026-07-02T20:00:00Z",
+    "2026-07-03T03:00:00Z",
+    "2026-07-03T22:00:00Z",
+    "2026-07-04T01:30:00Z",
     "2026-07-03T18:00:00Z",
-    "2026-07-03T20:30:00Z",
-    "2026-07-03T13:00:00Z",
   ];
 
   const insertGame = db.prepare(`
@@ -221,16 +246,16 @@ if (gameCount.count === 0) {
     });
   });
 
-  // 2. Round of 16 (8 matches)
+  // 2. Round of 16 (8 matches) — true UTC kickoff instants
   const r16Kickoffs = [
+    "2026-07-04T21:00:00Z",
     "2026-07-04T17:00:00Z",
-    "2026-07-04T12:00:00Z",
-    "2026-07-05T16:00:00Z",
-    "2026-07-05T18:00:00Z",
-    "2026-07-06T14:00:00Z",
-    "2026-07-06T17:00:00Z",
-    "2026-07-07T12:00:00Z",
-    "2026-07-07T13:00:00Z",
+    "2026-07-05T20:00:00Z",
+    "2026-07-06T00:00:00Z",
+    "2026-07-06T19:00:00Z",
+    "2026-07-07T00:00:00Z",
+    "2026-07-07T16:00:00Z",
+    "2026-07-07T20:00:00Z",
   ];
   const r16Labels = [
     ["Winner Match 74", "Winner Match 77"],
@@ -257,12 +282,12 @@ if (gameCount.count === 0) {
     });
   }
 
-  // 3. Quarter-finals (4 matches)
+  // 3. Quarter-finals (4 matches) — true UTC kickoff instants
   const qfKickoffs = [
-    "2026-07-09T16:00:00Z",
-    "2026-07-10T12:00:00Z",
-    "2026-07-11T17:00:00Z",
-    "2026-07-11T20:00:00Z",
+    "2026-07-09T20:00:00Z",
+    "2026-07-10T19:00:00Z",
+    "2026-07-11T21:00:00Z",
+    "2026-07-12T01:00:00Z",
   ];
   const qfLabels = [
     ["Winner Match 89", "Winner Match 90"],
@@ -285,8 +310,8 @@ if (gameCount.count === 0) {
     });
   }
 
-  // 4. Semi-finals (2 matches)
-  const sfKickoffs = ["2026-07-14T14:00:00Z", "2026-07-15T15:00:00Z"];
+  // 4. Semi-finals (2 matches) — true UTC kickoff instants
+  const sfKickoffs = ["2026-07-14T19:00:00Z", "2026-07-15T19:00:00Z"];
   const sfLabels = [
     ["Winner Match 97", "Winner Match 98"],
     ["Winner Match 99", "Winner Match 100"],
@@ -315,7 +340,7 @@ if (gameCount.count === 0) {
     away_team_id: null,
     home_team_label: "Winner Match 101",
     away_team_label: "Winner Match 102",
-    kickoff: "2026-07-19T15:00:00Z",
+    kickoff: "2026-07-19T19:00:00Z", // true UTC kickoff instant
     finished: "FALSE",
     winner_id: null,
   });

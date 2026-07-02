@@ -1,249 +1,253 @@
-import { Team, Match, Bracket, ParticipatingTeam } from '../types';
+import { Team, Match, Bracket, ParticipatingTeam } from "../types";
 
 export const WORLD_CUP_TEAMS: Team[] = [
-  { id: '1', name: 'Mexico', flag: '🇲🇽', group: 'A' },
-  { id: '2', name: 'South Africa', flag: '🇿🇦', group: 'A' },
-  { id: '3', name: 'South Korea', flag: '🇰🇷', group: 'A' },
-  { id: '4', name: 'Czech Republic', flag: '🇨🇿', group: 'A' },
-  { id: '5', name: 'Canada', flag: '🇨🇦', group: 'B' },
-  { id: '6', name: 'Bosnia and Herzegovina', flag: '🇧🇦', group: 'B' },
-  { id: '7', name: 'Qatar', flag: '🇶🇦', group: 'B' },
-  { id: '8', name: 'Switzerland', flag: '🇨🇭', group: 'B' },
-  { id: '9', name: 'Brazil', flag: '🇧🇷', group: 'C' },
-  { id: '10', name: 'Morocco', flag: '🇲🇦', group: 'C' },
-  { id: '11', name: 'Haiti', flag: '🇭🇹', group: 'C' },
-  { id: '12', name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', group: 'C' },
-  { id: '13', name: 'USA', flag: '🇺🇸', group: 'D' },
-  { id: '14', name: 'Paraguay', flag: '🇵🇾', group: 'D' },
-  { id: '15', name: 'Australia', flag: '🇦🇺', group: 'D' },
-  { id: '16', name: 'Turkey', flag: '🇹🇷', group: 'D' },
-  { id: '17', name: 'Germany', flag: '🇩🇪', group: 'E' },
-  { id: '18', name: 'Curaçao', flag: '🇨🇼', group: 'E' },
-  { id: '19', name: 'Ivory Coast', flag: '🇨🇮', group: 'E' },
-  { id: '20', name: 'Ecuador', flag: '🇪🇨', group: 'E' },
-  { id: '21', name: 'Netherlands', flag: '🇳🇱', group: 'F' },
-  { id: '22', name: 'Japan', flag: '🇯🇵', group: 'F' },
-  { id: '23', name: 'Sweden', flag: '🇸🇪', group: 'F' },
-  { id: '24', name: 'Tunisia', flag: '🇹🇳', group: 'F' },
-  { id: '25', name: 'Belgium', flag: '🇧🇪', group: 'G' },
-  { id: '26', name: 'Egypt', flag: '🇪🇬', group: 'G' },
-  { id: '27', name: 'Iran', flag: '🇮🇷', group: 'G' },
-  { id: '28', name: 'New Zealand', flag: '🇳🇿', group: 'G' },
-  { id: '29', name: 'Spain', flag: '🇪🇸', group: 'H' },
-  { id: '30', name: 'Cape Verde', flag: '🇨🇻', group: 'H' },
-  { id: '31', name: 'Saudi Arabia', flag: '🇸🇦', group: 'H' },
-  { id: '32', name: 'Uruguay', flag: '🇺🇾', group: 'H' },
-  { id: '33', name: 'France', flag: '🇫🇷', group: 'I' },
-  { id: '34', name: 'Senegal', flag: '🇸🇳', group: 'I' },
-  { id: '35', name: 'Iraq', flag: '🇮🇶', group: 'I' },
-  { id: '36', name: 'Norway', flag: '🇳🇴', group: 'I' },
-  { id: '37', name: 'Argentina', flag: '🇦🇷', group: 'J' },
-  { id: '38', name: 'Algeria', flag: '🇩🇿', group: 'J' },
-  { id: '39', name: 'Austria', flag: '🇦🇹', group: 'J' },
-  { id: '40', name: 'Jordan', flag: '🇯🇴', group: 'J' },
-  { id: '41', name: 'Portugal', flag: '🇵🇹', group: 'K' },
-  { id: '42', name: 'DR Congo', flag: '🇨🇩', group: 'K' },
-  { id: '43', name: 'Uzbekistan', flag: '🇺🇿', group: 'K' },
-  { id: '44', name: 'Colombia', flag: '🇨🇴', group: 'K' },
-  { id: '45', name: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', group: 'L' },
-  { id: '46', name: 'Croatia', flag: '🇭🇷', group: 'L' },
-  { id: '47', name: 'Ghana', flag: '🇬🇭', group: 'L' },
-  { id: '48', name: 'Panama', flag: '🇵🇦', group: 'L' },
+  { id: "1", name: "Mexico", flag: "🇲🇽", group: "A" },
+  { id: "2", name: "South Africa", flag: "🇿🇦", group: "A" },
+  { id: "3", name: "South Korea", flag: "🇰🇷", group: "A" },
+  { id: "4", name: "Czech Republic", flag: "🇨🇿", group: "A" },
+  { id: "5", name: "Canada", flag: "🇨🇦", group: "B" },
+  { id: "6", name: "Bosnia and Herzegovina", flag: "🇧🇦", group: "B" },
+  { id: "7", name: "Qatar", flag: "🇶🇦", group: "B" },
+  { id: "8", name: "Switzerland", flag: "🇨🇭", group: "B" },
+  { id: "9", name: "Brazil", flag: "🇧🇷", group: "C" },
+  { id: "10", name: "Morocco", flag: "🇲🇦", group: "C" },
+  { id: "11", name: "Haiti", flag: "🇭🇹", group: "C" },
+  { id: "12", name: "Scotland", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", group: "C" },
+  { id: "13", name: "USA", flag: "🇺🇸", group: "D" },
+  { id: "14", name: "Paraguay", flag: "🇵🇾", group: "D" },
+  { id: "15", name: "Australia", flag: "🇦🇺", group: "D" },
+  { id: "16", name: "Turkey", flag: "🇹🇷", group: "D" },
+  { id: "17", name: "Germany", flag: "🇩🇪", group: "E" },
+  { id: "18", name: "Curaçao", flag: "🇨🇼", group: "E" },
+  { id: "19", name: "Ivory Coast", flag: "🇨🇮", group: "E" },
+  { id: "20", name: "Ecuador", flag: "🇪🇨", group: "E" },
+  { id: "21", name: "Netherlands", flag: "🇳🇱", group: "F" },
+  { id: "22", name: "Japan", flag: "🇯🇵", group: "F" },
+  { id: "23", name: "Sweden", flag: "🇸🇪", group: "F" },
+  { id: "24", name: "Tunisia", flag: "🇹🇳", group: "F" },
+  { id: "25", name: "Belgium", flag: "🇧🇪", group: "G" },
+  { id: "26", name: "Egypt", flag: "🇪🇬", group: "G" },
+  { id: "27", name: "Iran", flag: "🇮🇷", group: "G" },
+  { id: "28", name: "New Zealand", flag: "🇳🇿", group: "G" },
+  { id: "29", name: "Spain", flag: "🇪🇸", group: "H" },
+  { id: "30", name: "Cape Verde", flag: "🇨🇻", group: "H" },
+  { id: "31", name: "Saudi Arabia", flag: "🇸🇦", group: "H" },
+  { id: "32", name: "Uruguay", flag: "🇺🇾", group: "H" },
+  { id: "33", name: "France", flag: "🇫🇷", group: "I" },
+  { id: "34", name: "Senegal", flag: "🇸🇳", group: "I" },
+  { id: "35", name: "Iraq", flag: "🇮🇶", group: "I" },
+  { id: "36", name: "Norway", flag: "🇳🇴", group: "I" },
+  { id: "37", name: "Argentina", flag: "🇦🇷", group: "J" },
+  { id: "38", name: "Algeria", flag: "🇩🇿", group: "J" },
+  { id: "39", name: "Austria", flag: "🇦🇹", group: "J" },
+  { id: "40", name: "Jordan", flag: "🇯🇴", group: "J" },
+  { id: "41", name: "Portugal", flag: "🇵🇹", group: "K" },
+  { id: "42", name: "DR Congo", flag: "🇨🇩", group: "K" },
+  { id: "43", name: "Uzbekistan", flag: "🇺🇿", group: "K" },
+  { id: "44", name: "Colombia", flag: "🇨🇴", group: "K" },
+  { id: "45", name: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", group: "L" },
+  { id: "46", name: "Croatia", flag: "🇭🇷", group: "L" },
+  { id: "47", name: "Ghana", flag: "🇬🇭", group: "L" },
+  { id: "48", name: "Panama", flag: "🇵🇦", group: "L" },
 ];
 
 export const INITIAL_R32_MATCHUPS: [string, string][] = [
-  ['2', '5'],   // R32-1 (Match 73): South Africa vs Canada
-  ['17', '14'], // R32-2 (Match 74): Germany vs Paraguay
-  ['21', '10'], // R32-3 (Match 75): Netherlands vs Morocco
-  ['9', '22'],  // R32-4 (Match 76): Brazil vs Japan
-  ['33', '23'], // R32-5 (Match 77): France vs Sweden
-  ['19', '36'], // R32-6 (Match 78): Ivory Coast vs Norway
-  ['1', '20'],  // R32-7 (Match 79): Mexico vs Ecuador
-  ['45', '42'], // R32-8 (Match 80): England vs DR Congo
-  ['13', '6'],  // R32-9 (Match 81): USA vs Bosnia and Herzegovina
-  ['25', '34'], // R32-10 (Match 82): Belgium vs Senegal
-  ['41', '46'], // R32-11 (Match 83): Portugal vs Croatia
-  ['29', '39'], // R32-12 (Match 84): Spain vs Austria
-  ['8', '38'],  // R32-13 (Match 85): Switzerland vs Algeria
-  ['37', '30'], // R32-14 (Match 86): Argentina vs Cape Verde
-  ['44', '47'], // R32-15 (Match 87): Colombia vs Ghana
-  ['15', '26'], // R32-16 (Match 88): Australia vs Egypt
+  ["2", "5"], // R32-1 (Match 73): South Africa vs Canada
+  ["17", "14"], // R32-2 (Match 74): Germany vs Paraguay
+  ["21", "10"], // R32-3 (Match 75): Netherlands vs Morocco
+  ["9", "22"], // R32-4 (Match 76): Brazil vs Japan
+  ["33", "23"], // R32-5 (Match 77): France vs Sweden
+  ["19", "36"], // R32-6 (Match 78): Ivory Coast vs Norway
+  ["1", "20"], // R32-7 (Match 79): Mexico vs Ecuador
+  ["45", "42"], // R32-8 (Match 80): England vs DR Congo
+  ["13", "6"], // R32-9 (Match 81): USA vs Bosnia and Herzegovina
+  ["25", "34"], // R32-10 (Match 82): Belgium vs Senegal
+  ["41", "46"], // R32-11 (Match 83): Portugal vs Croatia
+  ["29", "39"], // R32-12 (Match 84): Spain vs Austria
+  ["8", "38"], // R32-13 (Match 85): Switzerland vs Algeria
+  ["37", "30"], // R32-14 (Match 86): Argentina vs Cape Verde
+  ["44", "47"], // R32-15 (Match 87): Colombia vs Ghana
+  ["15", "26"], // R32-16 (Match 88): Australia vs Egypt
 ];
 
 export const FOUR_PARTICIPATING_TEAMS: ParticipatingTeam[] = [
   {
-    id: 'team_alpha',
-    name: 'Team Alpha',
-    color: '#3B82F6', // Blue
-    avatar: '🦁',
+    id: "team_alpha",
+    name: "Team Alpha",
+    color: "#3B82F6", // Blue
+    avatar: "🦁",
     cumulativeHistory: [
-      { season: '2018', points: 340 },
-      { season: '2022', points: 410 },
-    ]
+      { season: "2018", points: 340 },
+      { season: "2022", points: 410 },
+    ],
   },
   {
-    id: 'team_beta',
-    name: 'Team Beta',
-    color: '#EF4444', // Red
-    avatar: '🦅',
+    id: "team_beta",
+    name: "Team Beta",
+    color: "#EF4444", // Red
+    avatar: "🦅",
     cumulativeHistory: [
-      { season: '2018', points: 390 },
-      { season: '2022', points: 360 },
-    ]
+      { season: "2018", points: 390 },
+      { season: "2022", points: 360 },
+    ],
   },
   {
-    id: 'team_gamma',
-    name: 'Team Gamma',
-    color: '#10B981', // Emerald
-    avatar: '🐉',
+    id: "team_gamma",
+    name: "Team Gamma",
+    color: "#10B981", // Emerald
+    avatar: "🐉",
     cumulativeHistory: [
-      { season: '2018', points: 310 },
-      { season: '2022', points: 440 },
-    ]
+      { season: "2018", points: 310 },
+      { season: "2022", points: 440 },
+    ],
   },
   {
-    id: 'team_delta',
-    name: 'Team Delta',
-    color: '#F59E0B', // Amber
-    avatar: '🐺',
+    id: "team_delta",
+    name: "Team Delta",
+    color: "#F59E0B", // Amber
+    avatar: "🐺",
     cumulativeHistory: [
-      { season: '2018', points: 420 },
-      { season: '2022', points: 380 },
-    ]
-  }
+      { season: "2018", points: 420 },
+      { season: "2022", points: 380 },
+    ],
+  },
 ];
 
 export function createInitialBracket(): Bracket {
   // 1. R32 Matches (June 28 - July 3, 2026)
+  // NOTE: true UTC kickoff instants (local venue time converted using each
+  // stadium's UTC offset), not the raw local kickoff time with "Z" appended.
   const r32Kickoffs = [
-    '2026-06-28T12:00:00Z', // R32-1 (Match 73)
-    '2026-06-29T16:30:00Z', // R32-2 (Match 74)
-    '2026-06-29T19:00:00Z', // R32-3 (Match 75)
-    '2026-06-29T12:00:00Z', // R32-4 (Match 76)
-    '2026-06-30T17:00:00Z', // R32-5 (Match 77)
-    '2026-06-30T12:00:00Z', // R32-6 (Match 78)
-    '2026-06-30T19:00:00Z', // R32-7 (Match 79)
-    '2026-07-01T12:00:00Z', // R32-8 (Match 80)
-    '2026-07-01T17:00:00Z', // R32-9 (Match 81)
-    '2026-07-01T13:00:00Z', // R32-10 (Match 82)
-    '2026-07-02T19:00:00Z', // R32-11 (Match 83)
-    '2026-07-02T12:00:00Z', // R32-12 (Match 84)
-    '2026-07-02T20:00:00Z', // R32-13 (Match 85)
-    '2026-07-03T18:00:00Z', // R32-14 (Match 86)
-    '2026-07-03T20:30:00Z', // R32-15 (Match 87)
-    '2026-07-03T13:00:00Z', // R32-16 (Match 88)
+    "2026-06-28T19:00:00Z", // R32-1 (Match 73)
+    "2026-06-29T20:30:00Z", // R32-2 (Match 74)
+    "2026-06-30T01:00:00Z", // R32-3 (Match 75)
+    "2026-06-29T17:00:00Z", // R32-4 (Match 76)
+    "2026-06-30T21:00:00Z", // R32-5 (Match 77)
+    "2026-06-30T17:00:00Z", // R32-6 (Match 78)
+    "2026-07-01T01:00:00Z", // R32-7 (Match 79)
+    "2026-07-01T16:00:00Z", // R32-8 (Match 80)
+    "2026-07-02T00:00:00Z", // R32-9 (Match 81)
+    "2026-07-01T20:00:00Z", // R32-10 (Match 82)
+    "2026-07-02T23:00:00Z", // R32-11 (Match 83)
+    "2026-07-02T19:00:00Z", // R32-12 (Match 84)
+    "2026-07-03T03:00:00Z", // R32-13 (Match 85)
+    "2026-07-03T22:00:00Z", // R32-14 (Match 86)
+    "2026-07-04T01:30:00Z", // R32-15 (Match 87)
+    "2026-07-03T18:00:00Z", // R32-16 (Match 88)
   ];
 
   const R32: Match[] = INITIAL_R32_MATCHUPS.map(([home, away], index) => {
     return {
       id: `R32-${index + 1}`,
-      stage: 'R32',
+      stage: "R32",
       homeTeamId: home,
       awayTeamId: away,
       winnerId: null,
-      kickoff: r32Kickoffs[index]
+      kickoff: r32Kickoffs[index],
     };
   });
 
-  // 2. R16 Matches (July 4 - July 7, 2026) (8 matches)
+  // 2. R16 Matches (July 4 - July 7, 2026) (8 matches) — true UTC kickoff instants
   const r16Kickoffs = [
-    '2026-07-04T17:00:00Z', // R16-1 (Match 89)
-    '2026-07-04T12:00:00Z', // R16-2 (Match 90)
-    '2026-07-05T16:00:00Z', // R16-3 (Match 91)
-    '2026-07-05T18:00:00Z', // R16-4 (Match 92)
-    '2026-07-06T14:00:00Z', // R16-5 (Match 93)
-    '2026-07-06T17:00:00Z', // R16-6 (Match 94)
-    '2026-07-07T12:00:00Z', // R16-7 (Match 95)
-    '2026-07-07T13:00:00Z', // R16-8 (Match 96)
+    "2026-07-04T21:00:00Z", // R16-1 (Match 89)
+    "2026-07-04T17:00:00Z", // R16-2 (Match 90)
+    "2026-07-05T20:00:00Z", // R16-3 (Match 91)
+    "2026-07-06T00:00:00Z", // R16-4 (Match 92)
+    "2026-07-06T19:00:00Z", // R16-5 (Match 93)
+    "2026-07-07T00:00:00Z", // R16-6 (Match 94)
+    "2026-07-07T16:00:00Z", // R16-7 (Match 95)
+    "2026-07-07T20:00:00Z", // R16-8 (Match 96)
   ];
 
   const R16_Labels = [
-    ['Winner Match 74', 'Winner Match 77'], // R16-1
-    ['Winner Match 73', 'Winner Match 75'], // R16-2
-    ['Winner Match 76', 'Winner Match 78'], // R16-3
-    ['Winner Match 79', 'Winner Match 80'], // R16-4
-    ['Winner Match 83', 'Winner Match 84'], // R16-5
-    ['Winner Match 81', 'Winner Match 82'], // R16-6
-    ['Winner Match 86', 'Winner Match 88'], // R16-7
-    ['Winner Match 85', 'Winner Match 87'], // R16-8
+    ["Winner Match 74", "Winner Match 77"], // R16-1
+    ["Winner Match 73", "Winner Match 75"], // R16-2
+    ["Winner Match 76", "Winner Match 78"], // R16-3
+    ["Winner Match 79", "Winner Match 80"], // R16-4
+    ["Winner Match 83", "Winner Match 84"], // R16-5
+    ["Winner Match 81", "Winner Match 82"], // R16-6
+    ["Winner Match 86", "Winner Match 88"], // R16-7
+    ["Winner Match 85", "Winner Match 87"], // R16-8
   ];
 
   const R16: Match[] = Array.from({ length: 8 }).map((_, index) => {
     return {
       id: `R16-${index + 1}`,
-      stage: 'R16',
+      stage: "R16",
       homeTeamId: null,
       awayTeamId: null,
       homeTeamLabel: R16_Labels[index][0],
       awayTeamLabel: R16_Labels[index][1],
       winnerId: null,
-      kickoff: r16Kickoffs[index]
+      kickoff: r16Kickoffs[index],
     };
   });
 
-  // 3. QF Matches (July 9 - July 11, 2026) (4 matches)
+  // 3. QF Matches (July 9 - July 11, 2026) (4 matches) — true UTC kickoff instants
   const qfKickoffs = [
-    '2026-07-09T16:00:00Z', // QF-1 (Match 97)
-    '2026-07-10T12:00:00Z', // QF-2 (Match 98)
-    '2026-07-11T17:00:00Z', // QF-3 (Match 99)
-    '2026-07-11T20:00:00Z', // QF-4 (Match 100)
+    "2026-07-09T20:00:00Z", // QF-1 (Match 97)
+    "2026-07-10T19:00:00Z", // QF-2 (Match 98)
+    "2026-07-11T21:00:00Z", // QF-3 (Match 99)
+    "2026-07-12T01:00:00Z", // QF-4 (Match 100)
   ];
 
   const QF_Labels = [
-    ['Winner Match 89', 'Winner Match 90'],  // QF-1
-    ['Winner Match 93', 'Winner Match 94'],  // QF-2
-    ['Winner Match 91', 'Winner Match 92'],  // QF-3
-    ['Winner Match 95', 'Winner Match 96'],  // QF-4
+    ["Winner Match 89", "Winner Match 90"], // QF-1
+    ["Winner Match 93", "Winner Match 94"], // QF-2
+    ["Winner Match 91", "Winner Match 92"], // QF-3
+    ["Winner Match 95", "Winner Match 96"], // QF-4
   ];
 
   const QF: Match[] = Array.from({ length: 4 }).map((_, index) => {
     return {
       id: `QF-${index + 1}`,
-      stage: 'QF',
+      stage: "QF",
       homeTeamId: null,
       awayTeamId: null,
       homeTeamLabel: QF_Labels[index][0],
       awayTeamLabel: QF_Labels[index][1],
       winnerId: null,
-      kickoff: qfKickoffs[index]
+      kickoff: qfKickoffs[index],
     };
   });
 
-  // 4. SF Matches (July 14 - July 15, 2026) (2 matches)
+  // 4. SF Matches (July 14 - July 15, 2026) (2 matches) — true UTC kickoff instants
   const sfKickoffs = [
-    '2026-07-14T14:00:00Z', // SF-1 (Match 101)
-    '2026-07-15T15:00:00Z', // SF-2 (Match 102)
+    "2026-07-14T19:00:00Z", // SF-1 (Match 101)
+    "2026-07-15T19:00:00Z", // SF-2 (Match 102)
   ];
 
   const SF_Labels = [
-    ['Winner Match 97', 'Winner Match 98'],  // SF-1
-    ['Winner Match 99', 'Winner Match 100'], // SF-2
+    ["Winner Match 97", "Winner Match 98"], // SF-1
+    ["Winner Match 99", "Winner Match 100"], // SF-2
   ];
 
   const SF: Match[] = Array.from({ length: 2 }).map((_, index) => {
     return {
       id: `SF-${index + 1}`,
-      stage: 'SF',
+      stage: "SF",
       homeTeamId: null,
       awayTeamId: null,
       homeTeamLabel: SF_Labels[index][0],
       awayTeamLabel: SF_Labels[index][1],
       winnerId: null,
-      kickoff: sfKickoffs[index]
+      kickoff: sfKickoffs[index],
     };
   });
 
   // 5. Final Match (July 19, 2026)
-  const Final: Match[] = [{
-    id: 'Final-1',
-    stage: 'Final',
-    homeTeamId: null,
-    awayTeamId: null,
-    homeTeamLabel: 'Winner Match 101',
-    awayTeamLabel: 'Winner Match 102',
-    winnerId: null,
-    kickoff: '2026-07-19T15:00:00Z'
-  }];
+  const Final: Match[] = [
+    {
+      id: "Final-1",
+      stage: "Final",
+      homeTeamId: null,
+      awayTeamId: null,
+      homeTeamLabel: "Winner Match 101",
+      awayTeamLabel: "Winner Match 102",
+      winnerId: null,
+      kickoff: "2026-07-19T19:00:00Z", // true UTC kickoff instant
+    },
+  ];
 
   return {
     R32,
@@ -251,7 +255,7 @@ export function createInitialBracket(): Bracket {
     QF,
     SF,
     Final,
-    ChampionId: null
+    ChampionId: null,
   };
 }
 
@@ -262,12 +266,12 @@ export function createInitialBracket(): Bracket {
 export function propagateBracketWinners(
   bracket: Bracket,
   predictions: Record<string, string>,
-  championId: string | null = null
+  championId: string | null = null,
 ): Bracket {
   const newBracket = JSON.parse(JSON.stringify(bracket)) as Bracket;
 
   // 1. Populate R32 winners
-  newBracket.R32.forEach(m => {
+  newBracket.R32.forEach((m) => {
     m.winnerId = predictions[m.id] || null;
   });
 
@@ -305,7 +309,7 @@ export function propagateBracketWinners(
   newBracket.R16[7].awayTeamId = newBracket.R32[14].winnerId;
 
   // Set R16 winners
-  newBracket.R16.forEach(m => {
+  newBracket.R16.forEach((m) => {
     m.winnerId = predictions[m.id] || null;
   });
 
@@ -327,7 +331,7 @@ export function propagateBracketWinners(
   newBracket.QF[3].awayTeamId = newBracket.R16[7].winnerId;
 
   // Set QF winners
-  newBracket.QF.forEach(m => {
+  newBracket.QF.forEach((m) => {
     m.winnerId = predictions[m.id] || null;
   });
 
@@ -341,7 +345,7 @@ export function propagateBracketWinners(
   newBracket.SF[1].awayTeamId = newBracket.QF[3].winnerId;
 
   // Set SF winners
-  newBracket.SF.forEach(m => {
+  newBracket.SF.forEach((m) => {
     m.winnerId = predictions[m.id] || null;
   });
 
@@ -350,7 +354,7 @@ export function propagateBracketWinners(
   newBracket.Final[0].awayTeamId = newBracket.SF[1].winnerId;
   newBracket.Final[0].winnerId = predictions[newBracket.Final[0].id] || null;
 
-  newBracket.ChampionId = championId || predictions['Champion'] || null;
+  newBracket.ChampionId = championId || predictions["Champion"] || null;
 
   return newBracket;
 }

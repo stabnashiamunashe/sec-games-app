@@ -1,5 +1,5 @@
 import React from 'react';
-import { ParticipatingTeam } from '../types';
+import { ParticipatingTeam, ScorePrediction } from '../types';
 import { calculateUserScore } from '../utils/scoring';
 import { motion } from 'motion/react';
 import { TrendingUp, CalendarCheck } from 'lucide-react';
@@ -7,6 +7,7 @@ import { TrendingUp, CalendarCheck } from 'lucide-react';
 interface SummaryViewProps {
   participatingTeams: ParticipatingTeam[];
   predictions: Record<string, Record<string, string>>; // teamId -> Record<matchId, teamId>
+  scorePredictions: Record<string, Record<string, ScorePrediction>>;
   actualResults: Record<string, string>;
   games: any[]; // SQLite games list
   directPoints?: any[]; // optional list of direct point awards
@@ -15,6 +16,7 @@ interface SummaryViewProps {
 export default function SummaryView({
   participatingTeams,
   predictions,
+  scorePredictions,
   actualResults,
   games = [],
   directPoints = [],
@@ -22,7 +24,8 @@ export default function SummaryView({
   // Compile totals for each team using database games list and direct points
   const teamsWithTotals = participatingTeams.map((pTeam) => {
     const p = predictions[pTeam.id] || {};
-    const breakdown = calculateUserScore(p, actualResults, games);
+    const scorePicks = scorePredictions[pTeam.id] || {};
+    const breakdown = calculateUserScore(p, actualResults, games, scorePicks);
     
     // Sum direct sports points
     const teamDirectPoints = (directPoints || []).filter(dp => dp.team_id === pTeam.id);
