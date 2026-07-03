@@ -1046,11 +1046,36 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: "spa",
     });
+    // Optional: Force UTF-8 in dev mode as well, just in case
+    app.use((req, res, next) => {
+      res.charset = "utf-8";
+      next();
+    });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+
+    // 1. Force UTF-8 on static assets (JS, CSS, etc.)
+    app.use(
+      express.static(distPath, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith(".html")) {
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+          } else if (filePath.endsWith(".js")) {
+            res.setHeader(
+              "Content-Type",
+              "application/javascript; charset=utf-8",
+            );
+          } else if (filePath.endsWith(".css")) {
+            res.setHeader("Content-Type", "text/css; charset=utf-8");
+          }
+        },
+      }),
+    );
+
+    // 2. Force UTF-8 on the catch-all route for the SPA
     app.get("*", (req, res) => {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
