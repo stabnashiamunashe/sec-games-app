@@ -192,10 +192,46 @@ export default function BracketView({
     }
   };
 
-  const visualBracket = propagateBracketWinners(
-    createInitialBracket(),
-    currentPredictions,
+  const gameMap = useMemo(
+    () => new Map(games.map((game) => [game.id, game])),
+    [games],
   );
+
+  const dynamicBaseBracket = useMemo(() => {
+    const base = createInitialBracket();
+
+    const injectKnownTeams = (matches: Match[]) => {
+      return matches.map((m) => {
+        const gameData = gameMap.get(m.id);
+        if (gameData) {
+          // Inject if the API has a valid team ID (not "0" or null)
+          if (gameData.home_team_id && gameData.home_team_id !== "0") {
+            m.homeTeamId = String(gameData.home_team_id);
+          }
+          if (gameData.away_team_id && gameData.away_team_id !== "0") {
+            m.awayTeamId = String(gameData.away_team_id);
+          }
+        }
+        return m;
+      });
+    };
+
+    base.R32 = injectKnownTeams(base.R32);
+    base.R16 = injectKnownTeams(base.R16);
+    base.QF = injectKnownTeams(base.QF);
+    base.SF = injectKnownTeams(base.SF);
+    base.Final = injectKnownTeams(base.Final);
+
+    return base;
+  }, [gameMap]);
+
+  // Helper to quickly get a fresh clone of the live base
+  const getLiveBase = () => JSON.parse(JSON.stringify(dynamicBaseBracket));
+
+  // 2. Propagate user predictions ON TOP of the dynamic base bracket
+  const visualBracket = useMemo(() => {
+    return propagateBracketWinners(getLiveBase(), currentPredictions);
+  }, [dynamicBaseBracket, currentPredictions]);
 
   const getTeamObj = (id: string | null): Team | null => {
     if (!id) return null;
@@ -208,11 +244,6 @@ export default function BracketView({
     if (!id) return null;
     return participatingTeams.find((t) => t.id === id) || null;
   };
-
-  const gameMap = useMemo(
-    () => new Map(games.map((game) => [game.id, game])),
-    [games],
-  );
 
   const formatKickoff = (isoString?: string): string => {
     if (!isoString) return "";
@@ -457,10 +488,7 @@ export default function BracketView({
       updated["Champion"] = winnerId;
     }
 
-    const tempBracket = propagateBracketWinners(
-      createInitialBracket(),
-      updated,
-    );
+    const tempBracket = propagateBracketWinners(getLiveBase(), updated);
     const cleanPredictions = { ...updated };
 
     tempBracket.R16.forEach((m) => {
@@ -470,7 +498,7 @@ export default function BracketView({
     });
 
     const tempBracket2 = propagateBracketWinners(
-      createInitialBracket(),
+      getLiveBase(),
       cleanPredictions,
     );
     tempBracket2.QF.forEach((m) => {
@@ -480,7 +508,7 @@ export default function BracketView({
     });
 
     const tempBracket3 = propagateBracketWinners(
-      createInitialBracket(),
+      getLiveBase(),
       cleanPredictions,
     );
     tempBracket3.SF.forEach((m) => {
@@ -490,7 +518,7 @@ export default function BracketView({
     });
 
     const tempBracket4 = propagateBracketWinners(
-      createInitialBracket(),
+      getLiveBase(),
       cleanPredictions,
     );
     tempBracket4.Final.forEach((m) => {
@@ -500,7 +528,7 @@ export default function BracketView({
     });
 
     const tempBracket5 = propagateBracketWinners(
-      createInitialBracket(),
+      getLiveBase(),
       cleanPredictions,
     );
     if (
@@ -546,7 +574,7 @@ export default function BracketView({
       }
     });
 
-    let temp = propagateBracketWinners(createInitialBracket(), randomGuesses);
+    let temp = propagateBracketWinners(getLiveBase(), randomGuesses);
     temp.R16.forEach((m) => {
       const isStarted = isMatchLocked(m.id, m.kickoff);
       if (!isStarted) {
@@ -560,7 +588,7 @@ export default function BracketView({
       }
     });
 
-    temp = propagateBracketWinners(createInitialBracket(), randomGuesses);
+    temp = propagateBracketWinners(getLiveBase(), randomGuesses);
     temp.QF.forEach((m) => {
       const isStarted = isMatchLocked(m.id, m.kickoff);
       if (!isStarted) {
@@ -574,7 +602,7 @@ export default function BracketView({
       }
     });
 
-    temp = propagateBracketWinners(createInitialBracket(), randomGuesses);
+    temp = propagateBracketWinners(getLiveBase(), randomGuesses);
     temp.SF.forEach((m) => {
       const isStarted = isMatchLocked(m.id, m.kickoff);
       if (!isStarted) {
@@ -588,7 +616,7 @@ export default function BracketView({
       }
     });
 
-    temp = propagateBracketWinners(createInitialBracket(), randomGuesses);
+    temp = propagateBracketWinners(getLiveBase(), randomGuesses);
     const finalMatch = temp.Final[0];
     const isFinalStarted = isMatchLocked(finalMatch.id, finalMatch.kickoff);
     if (!isFinalStarted) {

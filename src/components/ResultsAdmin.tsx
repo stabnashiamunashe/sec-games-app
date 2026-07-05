@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Stage, Match, Team, ParticipatingTeam, PointsConfig } from "../types";
+import {
+  Stage,
+  Match,
+  Team,
+  ParticipatingTeam,
+  PointsConfig,
+  ScorePrediction,
+} from "../types";
 import {
   WORLD_CUP_TEAMS,
   createInitialBracket,
@@ -28,6 +35,8 @@ interface ResultsAdminProps {
   currentTimeIso: string;
   onRefreshServerTime: () => Promise<void>;
   directPoints?: any[]; // optional list of direct point awards
+  predictions?: Record<string, Record<string, string>>; // teamId -> gameId -> winnerId
+  scorePredictions?: Record<string, Record<string, ScorePrediction>>; // teamId -> gameId -> score
 }
 
 // Stage keys aligned with PointsConfig keys
@@ -42,6 +51,8 @@ export default function ResultsAdmin({
   currentTimeIso,
   onRefreshServerTime,
   directPoints = [],
+  predictions = {},
+  scorePredictions = {},
 }: ResultsAdminProps) {
   // Admin Login State
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
@@ -117,6 +128,16 @@ export default function ResultsAdmin({
   const [tempHomeScore, setTempHomeScore] = useState("");
   const [tempAwayScore, setTempAwayScore] = useState("");
   const [tempWinnerId, setTempWinnerId] = useState("");
+
+  // Admin prediction override state (bypasses the kickoff/finished lock so
+  // an admin can fix/enter any team's pick even after a match has started).
+  const [showOverrideForm, setShowOverrideForm] = useState(false);
+  const [overrideTeamId, setOverrideTeamId] = useState("");
+  const [overrideGameId, setOverrideGameId] = useState("");
+  const [overrideWinnerId, setOverrideWinnerId] = useState("");
+  const [overrideHomeScore, setOverrideHomeScore] = useState("");
+  const [overrideAwayScore, setOverrideAwayScore] = useState("");
+  const [isSavingOverride, setIsSavingOverride] = useState(false);
 
   // Fetch points config on load
   useEffect(() => {
@@ -422,6 +443,8 @@ export default function ResultsAdmin({
       return;
     }
     try {
+      const gameBeingSettled = games.find((g) => g.id === gameId);
+
       const response = await fetch("/api/admin/games/score", {
         method: "POST",
         headers: {
@@ -434,6 +457,10 @@ export default function ResultsAdmin({
           away_score: tempAwayScore ? parseInt(tempAwayScore) : null,
           winner_id: tempWinnerId,
           finished: "TRUE",
+          home_team_id: gameBeingSettled?.home_team_id || null,
+          away_team_id: gameBeingSettled?.away_team_id || null,
+          home_team_label: gameBeingSettled?.home_team_label || null,
+          away_team_label: gameBeingSettled?.away_team_label || null,
         }),
       });
 
@@ -507,11 +534,53 @@ export default function ResultsAdmin({
     }
   };
 
+  const handleOverridePrediction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!overrideTeamId || !overrideGameId) {
+      alert("Please choose both a prediction team and a game/outcome.");
+      return;
+    }
+    setIsSavingOverride(true);
+    try {
+      const response = await fetch("/api/admin/predictions/override", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": getAdminKey(),
+        },
+        body: JSON.stringify({
+          teamId: overrideTeamId,
+          gameId: overrideGameId,
+          winnerId: overrideWinnerId || null,
+          homeScore: overrideHomeScore === "" ? null : overrideHomeScore,
+          awayScore: overrideAwayScore === "" ? null : overrideAwayScore,
+        }),
+      });
+      if (response.ok) {
+        alert(
+          `Prediction override saved for ${overrideTeamId} on ${overrideGameId}. This bypasses the normal lock.`,
+        );
+        setOverrideWinnerId("");
+        setOverrideHomeScore("");
+        setOverrideAwayScore("");
+        await onRefreshData();
+      } else {
+        const err = await response.json();
+        alert(err.error || "Failed to save prediction override.");
+      }
+    } catch (err) {
+      alert("Error saving prediction override.");
+    } finally {
+      setIsSavingOverride(false);
+    }
+  };
+
   const getTeamName = (
     id: string | null,
     category: "world_cup" | "seczim_games",
+    fallbackLabel?: string | null,
   ): string => {
-    if (!id) return "Pending";
+    if (!id) return fallbackLabel || "Pending";
     if (category === "world_cup") {
       const t = WORLD_CUP_TEAMS.find((team) => team.id === id);
       return t ? `${t.flag} ${t.name}` : id;
@@ -546,7 +615,33 @@ export default function ResultsAdmin({
     setShowPointsConfigForm(
       formType === "config" ? !showPointsConfigForm : false,
     );
+    setShowOverrideForm(formType === "override" ? !showOverrideForm : false);
   };
+
+  // Games available to pick in the override form: whatever category/stage
+  // the admin currently has selected, so the dropdown matches what they're
+  // already looking at below. World Cup also gets a virtual "Champion Pick"
+  // entry since that's a special prediction slot, not a real game row.
+  const overrideGameOptions = games
+    .filter((g) =>
+      selectedCategory === "world_cup"
+        ? g.category === "world_cup"
+        : g.category === "seczim_games",
+    )
+    .map((g) => ({
+      id: g.id,
+      label: `${g.id} — ${getTeamName(g.home_team_id, selectedCategory, g.home_team_label)} vs ${getTeamName(g.away_team_id, selectedCategory, g.away_team_label)}`,
+    }));
+
+  const selectedOverrideGame = games.find((g) => g.id === overrideGameId);
+  const existingOverridePrediction =
+    overrideTeamId && overrideGameId
+      ? predictions[overrideTeamId]?.[overrideGameId]
+      : undefined;
+  const existingOverrideScore =
+    overrideTeamId && overrideGameId
+      ? scorePredictions[overrideTeamId]?.[overrideGameId]
+      : undefined;
 
   if (!isAdminLoggedIn) {
     return (
@@ -639,6 +734,13 @@ export default function ResultsAdmin({
               className="text-[10px] font-black bg-slate-200 text-brand-dark hover:bg-brand-dark hover:text-white px-3 py-2 border border-brand-dark rounded-none uppercase tracking-widest flex items-center gap-1 cursor-pointer"
             >
               <Settings2 className="w-3.5 h-3.5" /> Configure Scoring System
+            </button>
+            <button
+              onClick={() => handleToggleForm("override")}
+              className="text-[10px] font-black bg-rose-600 text-white hover:bg-brand-dark px-3 py-2 border border-rose-700 rounded-none uppercase tracking-widest flex items-center gap-1 cursor-pointer"
+              title="Set or fix any team's prediction, even on games that are already locked"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" /> Override Locked Prediction
             </button>
           </div>
 
@@ -788,6 +890,187 @@ export default function ResultsAdmin({
             </button>
           </div>
         </form>
+      )}
+
+      {showOverrideForm && (
+        <div className="bg-white border-4 border-rose-600 p-5 rounded-none space-y-4">
+          <h3 className="text-sm font-black uppercase tracking-wide text-rose-700 border-b border-slate-200 pb-2">
+            Override Locked Prediction (Admin Only)
+          </h3>
+          <p className="text-[10px] text-brand-dark-muted font-bold uppercase tracking-wide">
+            Use this to set or correct a prediction team's pick on a game that
+            has already kicked off or finished. Normal team predictors cannot
+            edit locked games — this form bypasses that lock.
+          </p>
+
+          <form
+            onSubmit={handleOverridePrediction}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <div>
+              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">
+                Prediction Team:
+              </label>
+              <select
+                required
+                value={overrideTeamId}
+                onChange={(e) => setOverrideTeamId(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-brand-dark px-2 py-1.5 text-xs font-black uppercase focus:outline-none"
+              >
+                <option value="">-- Choose Team --</option>
+                {participatingTeams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.avatar} {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">
+                Game / Outcome (
+                {selectedCategory === "world_cup"
+                  ? "World Cup Bracket"
+                  : "SecZim Games"}
+                ):
+              </label>
+              <select
+                required
+                value={overrideGameId}
+                onChange={(e) => {
+                  setOverrideGameId(e.target.value);
+                  setOverrideWinnerId("");
+                  setOverrideHomeScore("");
+                  setOverrideAwayScore("");
+                }}
+                className="w-full bg-slate-50 border-2 border-brand-dark px-2 py-1.5 text-xs font-mono focus:outline-none"
+              >
+                <option value="">-- Choose Game --</option>
+                {selectedCategory === "world_cup" && (
+                  <option value="Champion">Champion Pick (Final Winner)</option>
+                )}
+                {overrideGameOptions.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[9px] text-brand-dark-muted mt-1">
+                Tip: switch the category/stage tabs below to find other games —
+                this list follows that filter.
+              </p>
+            </div>
+
+            {overrideTeamId && overrideGameId && (
+              <div className="sm:col-span-2 bg-slate-50 border border-slate-200 p-2 text-[10px] font-mono text-brand-dark-muted">
+                Current saved pick:{" "}
+                {existingOverridePrediction
+                  ? getTeamName(existingOverridePrediction, selectedCategory)
+                  : "None"}
+                {existingOverrideScore &&
+                  (existingOverrideScore.homeScore !== null ||
+                    existingOverrideScore.awayScore !== null) &&
+                  ` (${existingOverrideScore.homeScore ?? "-"} - ${existingOverrideScore.awayScore ?? "-"})`}
+              </div>
+            )}
+
+            {overrideGameId &&
+              overrideGameId !== "Champion" &&
+              selectedOverrideGame && (
+                <div className="sm:col-span-2 grid grid-cols-2 gap-1 text-[9px] font-black font-sans">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOverrideWinnerId(
+                        selectedOverrideGame.home_team_id || "",
+                      )
+                    }
+                    disabled={!selectedOverrideGame.home_team_id}
+                    className={`p-2 border uppercase disabled:opacity-40 ${overrideWinnerId === selectedOverrideGame.home_team_id ? "bg-brand-dark text-white border-brand-dark" : "bg-white border-slate-300"}`}
+                  >
+                    {getTeamName(
+                      selectedOverrideGame.home_team_id,
+                      selectedCategory,
+                    )}{" "}
+                    Win
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOverrideWinnerId(
+                        selectedOverrideGame.away_team_id || "",
+                      )
+                    }
+                    disabled={!selectedOverrideGame.away_team_id}
+                    className={`p-2 border uppercase disabled:opacity-40 ${overrideWinnerId === selectedOverrideGame.away_team_id ? "bg-brand-dark text-white border-brand-dark" : "bg-white border-slate-300"}`}
+                  >
+                    {getTeamName(
+                      selectedOverrideGame.away_team_id,
+                      selectedCategory,
+                    )}{" "}
+                    Win
+                  </button>
+                </div>
+              )}
+
+            {overrideGameId === "Champion" && (
+              <div className="sm:col-span-2">
+                <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">
+                  Predicted Champion Team ID (WORLD_CUP_TEAMS id):
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 37 for Argentina"
+                  value={overrideWinnerId}
+                  onChange={(e) => setOverrideWinnerId(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-brand-dark px-2.5 py-1.5 text-xs font-mono focus:outline-none"
+                />
+              </div>
+            )}
+
+            {overrideGameId && overrideGameId !== "Champion" && (
+              <div className="sm:col-span-2 flex gap-2 items-center">
+                <label className="text-[9px] font-black uppercase text-brand-dark-light">
+                  Optional Score Prediction:
+                </label>
+                <input
+                  type="number"
+                  placeholder="Home"
+                  value={overrideHomeScore}
+                  onChange={(e) => setOverrideHomeScore(e.target.value)}
+                  className="w-16 bg-white border border-brand-dark p-1 text-center text-xs font-mono font-bold"
+                />
+                <span className="font-bold font-mono text-xs text-brand-dark-muted">
+                  -
+                </span>
+                <input
+                  type="number"
+                  placeholder="Away"
+                  value={overrideAwayScore}
+                  onChange={(e) => setOverrideAwayScore(e.target.value)}
+                  className="w-16 bg-white border border-brand-dark p-1 text-center text-xs font-mono font-bold"
+                />
+              </div>
+            )}
+
+            <div className="sm:col-span-2 flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowOverrideForm(false)}
+                className="text-xs font-black border-2 border-brand-dark px-4 py-2 hover:bg-slate-50 uppercase tracking-wider cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingOverride}
+                className="text-xs font-black bg-rose-600 text-white px-4 py-2 hover:bg-brand-dark border-2 border-rose-700 uppercase tracking-wider cursor-pointer disabled:opacity-50"
+              >
+                {isSavingOverride ? "Saving..." : "Save Override"}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {showDirectPointsForm && (
@@ -1297,8 +1580,16 @@ export default function ResultsAdmin({
             filteredGames.map((game) => {
               const isSettled = game.finished === "TRUE";
               const isEditing = editingGameId === game.id;
-              const homeName = getTeamName(game.home_team_id, selectedCategory);
-              const awayName = getTeamName(game.away_team_id, selectedCategory);
+              const homeName = getTeamName(
+                game.home_team_id,
+                selectedCategory,
+                game.home_team_label,
+              );
+              const awayName = getTeamName(
+                game.away_team_id,
+                selectedCategory,
+                game.away_team_label,
+              );
               const kickoffDate = new Date(game.kickoff);
               const hasKickedOff = kickoffDate <= new Date(currentTimeIso);
 

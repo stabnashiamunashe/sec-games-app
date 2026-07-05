@@ -777,17 +777,67 @@ async function startServer() {
     }
   };
 
+  const isRealTeamId = (value: unknown): value is string =>
+    typeof value === "string" && value.trim() !== "" && value.trim() !== "0";
+
   app.post("/api/admin/games/score", verifyAdmin, (req, res) => {
-    const { gameId, home_score, away_score, winner_id, finished } = req.body;
+    const {
+      gameId,
+      home_score,
+      away_score,
+      winner_id,
+      finished,
+      home_team_id,
+      away_team_id,
+      home_team_label,
+      away_team_label,
+    } = req.body;
     if (!gameId) return res.status(400).json({ error: "gameId is required" });
 
     try {
+      const existingGame = db
+        .prepare("SELECT home_team_id, away_team_id FROM games WHERE id = ?")
+        .get(gameId) as
+        | { home_team_id: string | null; away_team_id: string | null }
+        | undefined;
+
+      if (!existingGame) {
+        return res.status(404).json({ error: `Game ${gameId} not found` });
+      }
+
+      // Only overwrite the qualified team on each side once the caller
+      // supplies a real (non-placeholder) team id; otherwise keep whatever
+      // is already stored so we never blow away a known team with a blank.
+      const resolvedHomeTeamId = isRealTeamId(home_team_id)
+        ? String(home_team_id).trim()
+        : existingGame.home_team_id;
+      const resolvedAwayTeamId = isRealTeamId(away_team_id)
+        ? String(away_team_id).trim()
+        : existingGame.away_team_id;
+
+      const resolvedHomeTeamLabel =
+        home_team_label !== undefined && home_team_label !== null
+          ? String(home_team_label)
+          : null;
+      const resolvedAwayTeamLabel =
+        away_team_label !== undefined && away_team_label !== null
+          ? String(away_team_label)
+          : null;
+
       db.prepare(
         `
-        UPDATE games
-        SET home_score = ?, away_score = ?, winner_id = ?, finished = ?
-        WHERE id = ?
-      `,
+  UPDATE games
+  SET
+    home_score = ?,
+    away_score = ?,
+    winner_id = ?,
+    finished = ?,
+    home_team_id = ?,
+    away_team_id = ?,
+    home_team_label = COALESCE(?, CASE WHEN ? IS NOT NULL THEN NULL ELSE home_team_label END),
+    away_team_label = COALESCE(?, CASE WHEN ? IS NOT NULL THEN NULL ELSE away_team_label END)
+  WHERE id = ?
+`,
       ).run(
         home_score !== undefined && home_score !== null
           ? parseInt(home_score)
@@ -797,12 +847,87 @@ async function startServer() {
           : null,
         winner_id || null,
         finished || "FALSE",
+        resolvedHomeTeamId,
+        resolvedAwayTeamId,
+        resolvedHomeTeamLabel,
+        resolvedHomeTeamId,
+        resolvedAwayTeamLabel,
+        resolvedAwayTeamId,
         gameId,
       );
 
       res.json({
         success: true,
-        message: `Game ${gameId} score updated successfully.`,
+        message: `Game ${gameId} updated successfully.`,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin override: force-set (or clear) any prediction team's pick for any
+  // game, bypassing the normal kickoff/finished lock entirely. Intended for
+  // corrections after a match has already started or finished.
+  app.post("/api/admin/predictions/override", verifyAdmin, (req, res) => {
+    const { teamId, gameId, winnerId, homeScore, awayScore } = req.body;
+    if (!teamId || !gameId) {
+      return res.status(400).json({ error: "teamId and gameId are required" });
+    }
+
+    try {
+      const team = db
+        .prepare("SELECT id FROM participating_teams WHERE id = ?")
+        .get(teamId);
+      if (!team) {
+        return res.status(404).json({ error: "Prediction team not found" });
+      }
+
+      if (gameId !== "Champion") {
+        const game = db
+          .prepare("SELECT id FROM games WHERE id = ?")
+          .get(gameId);
+        if (!game) {
+          return res.status(404).json({ error: `Game ${gameId} not found` });
+        }
+      }
+
+      const normalizedWinnerId = normalizeWinnerId(winnerId);
+      const homeScoreResult = parseOptionalScore(homeScore, "home score");
+      if (homeScoreResult.error) {
+        return res.status(400).json({ error: homeScoreResult.error });
+      }
+      const awayScoreResult = parseOptionalScore(awayScore, "away score");
+      if (awayScoreResult.error) {
+        return res.status(400).json({ error: awayScoreResult.error });
+      }
+
+      if (
+        normalizedWinnerId ||
+        homeScoreResult.value !== null ||
+        awayScoreResult.value !== null
+      ) {
+        db.prepare(
+          `
+          INSERT OR REPLACE INTO predictions (
+            team_id, game_id, predicted_winner_id, predicted_home_score, predicted_away_score
+          ) VALUES (?, ?, ?, ?, ?)
+        `,
+        ).run(
+          teamId,
+          gameId,
+          normalizedWinnerId || null,
+          homeScoreResult.value,
+          awayScoreResult.value,
+        );
+      } else {
+        db.prepare(
+          "DELETE FROM predictions WHERE team_id = ? AND game_id = ?",
+        ).run(teamId, gameId);
+      }
+
+      res.json({
+        success: true,
+        message: `Admin override saved for ${teamId} on ${gameId} (lock bypassed).`,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

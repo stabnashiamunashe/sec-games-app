@@ -143,6 +143,9 @@ export default function App() {
       const data = await response.json();
 
       if (data && Array.isArray(data.games)) {
+        // Official FIFA 2026 match numbering (see worldcup26.ir docs):
+        // group 1-72, r32 73-88, r16 89-96, qf 97-100, sf 101-102,
+        // third 103 (no internal stage - skipped), final 104.
         const mapApiIdToInternalId = (apiId: string, type: string): string => {
           const numericId = parseInt(apiId);
           if (type === "r32" || (numericId >= 73 && numericId <= 88))
@@ -157,43 +160,106 @@ export default function App() {
           return "";
         };
 
+        // The API's team ids ("1".."48") line up 1:1 with our internal
+        // WORLD_CUP_TEAMS ids, so once a knockout slot is decided
+        // (home_team_id/away_team_id no longer "0"), we can pass it straight
+        // through. This is what actually "fills in" the qualified teams for
+        // R16/QF/SF/Final before we even know who wins those matches.
+        const isRealApiTeamId = (value: unknown): value is string => {
+          if (value === null || value === undefined) return false;
+          const str = String(value).trim();
+          return str !== "" && str !== "0";
+        };
+
         const getWinnerIdFromApiGame = (g: any): string | null => {
           if (g.finished !== "TRUE") return null;
           const homeScore = parseInt(g.home_score);
           const awayScore = parseInt(g.away_score);
           if (homeScore > awayScore) return g.home_team_id;
           if (awayScore > homeScore) return g.away_team_id;
-          const homePen = parseInt(g.home_penalty_score || "0");
-          const awayPen = parseInt(g.away_penalty_score || "0");
+          const homePen = parseInt(
+            g.home_penalty_score ?? g.home_penalty ?? "0",
+          );
+          const awayPen = parseInt(
+            g.away_penalty_score ?? g.away_penalty ?? "0",
+          );
           if (homePen > awayPen) return g.home_team_id;
           if (awayPen > homePen) return g.away_team_id;
           return null;
         };
 
+        let updatedCount = 0;
+        let failedCount = 0;
+        const failedIds: string[] = [];
+
         for (const g of data.games) {
-          if (g.type !== "group" && g.finished === "TRUE") {
-            const internalId = mapApiIdToInternalId(g.id, g.type);
-            const winnerId = getWinnerIdFromApiGame(g);
-            if (internalId && winnerId) {
-              await fetch("/api/admin/games/score", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-admin-password": adminPass,
-                },
-                body: JSON.stringify({
-                  gameId: internalId,
-                  home_score: g.home_score,
-                  away_score: g.away_score,
-                  winner_id: winnerId,
-                  finished: "TRUE",
-                }),
-              });
+          if (g.type === "group" || g.type === "third") continue;
+
+          const internalId = mapApiIdToInternalId(g.id, g.type);
+          if (!internalId) continue;
+
+          const homeTeamId = isRealApiTeamId(g.home_team_id)
+            ? String(g.home_team_id)
+            : null;
+          const awayTeamId = isRealApiTeamId(g.away_team_id)
+            ? String(g.away_team_id)
+            : null;
+          const isFinished = g.finished === "TRUE";
+          const winnerId = isFinished ? getWinnerIdFromApiGame(g) : null;
+
+          // Nothing worth writing yet: teams still TBD and match not finished.
+          if (!homeTeamId && !awayTeamId && !isFinished) continue;
+
+          try {
+            const syncRes = await fetch("/api/admin/games/score", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-admin-password": adminPass,
+              },
+              body: JSON.stringify({
+                gameId: internalId,
+                home_score: isFinished ? g.home_score : null,
+                away_score: isFinished ? g.away_score : null,
+                winner_id: winnerId,
+                finished: isFinished ? "TRUE" : "FALSE",
+                home_team_id: homeTeamId,
+                away_team_id: awayTeamId,
+                // Always send the API's own English name as a guaranteed display
+                // fallback. This matters because getTeamObj() looks up teams in our
+                // *internal* WORLD_CUP_TEAMS list by id, and if that id numbering
+                // doesn't line up 1:1 with the live API's ids, the lookup silently
+                // fails and falls back to whatever label is stored — previously the
+                // stale "Winner Match X" placeholder text, now the real team name.
+                home_team_label: g.home_team_name_en || null,
+                away_team_label: g.away_team_name_en || null,
+              }),
+            });
+            if (syncRes.ok) {
+              updatedCount += 1;
+            } else {
+              failedCount += 1;
+              failedIds.push(internalId);
             }
+          } catch {
+            failedCount += 1;
+            failedIds.push(internalId);
           }
         }
-        setApiSyncStatus("synced");
+
         await loadDatabaseData();
+
+        if (failedCount > 0) {
+          setApiSyncStatus("error");
+          console.error(
+            `World Cup sync: ${updatedCount} match(es) updated, ${failedCount} failed (${failedIds.join(", ")}).`,
+          );
+          alert(
+            `Sync finished with errors: ${updatedCount} updated, ${failedCount} failed (${failedIds.join(", ")}). Check the console for details.`,
+          );
+        } else {
+          setApiSyncStatus("synced");
+        }
       } else {
         setApiSyncStatus("error");
       }
@@ -406,6 +472,8 @@ export default function App() {
                 currentTimeIso={currentTimeIso}
                 onRefreshServerTime={refreshServerTime}
                 directPoints={directPoints}
+                predictions={predictions}
+                scorePredictions={scorePredictions}
               />
             )}
 
