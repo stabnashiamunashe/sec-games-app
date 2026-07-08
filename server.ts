@@ -1159,9 +1159,16 @@ async function startServer() {
       });
       res.json({ ...data, games: enrichedGames });
     } catch (err: any) {
+      console.error(
+        "[WORLD CUP LIVE SYNC] fetch error:",
+        err,
+        "cause:",
+        err.cause,
+      );
       res.status(502).json({
         error: "Failed to proxy world cup games API",
-        details: err.message,
+        details: err.cause?.message || err.message,
+        code: err.cause?.code,
       });
     }
   });
