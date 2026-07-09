@@ -120,10 +120,10 @@ export default function SummaryView({
                   </div>
                   <div className="flex justify-between text-[10px] font-mono text-brand-dark-muted px-1">
                     <span>
-                      PREVIOUS SEASONS:{" "}
-                      {team.cumulativeHistory
+                      PREVIOUS SEASONS: NOT APPLICABLE
+                      {/* {team.cumulativeHistory
                         .map((h) => `${h.season} (${h.points}p)`)
-                        .join(", ") || "NONE"}
+                        .join(", ") || "NONE"} */}
                     </span>
                     <span className="text-brand-gold font-black">
                       CURRENT: {team.currentSeasonPoints}P
