@@ -11,7 +11,7 @@ import {
 import {
   WORLD_CUP_TEAMS,
   createInitialBracket,
-  propagateBracketWinners,
+  attachPredictedWinners,
 } from "../data/teams";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -230,7 +230,7 @@ export default function BracketView({
 
   // 2. Propagate user predictions ON TOP of the dynamic base bracket
   const visualBracket = useMemo(() => {
-    return propagateBracketWinners(getLiveBase(), currentPredictions);
+    return attachPredictedWinners(getLiveBase(), currentPredictions);
   }, [dynamicBaseBracket, currentPredictions]);
 
   const getTeamObj = (id: string | null): Team | null => {
@@ -488,57 +488,11 @@ export default function BracketView({
       updated["Champion"] = winnerId;
     }
 
-    const tempBracket = propagateBracketWinners(getLiveBase(), updated);
-    const cleanPredictions = { ...updated };
-
-    tempBracket.R16.forEach((m) => {
-      const allowed = [m.homeTeamId, m.awayTeamId].filter(Boolean) as string[];
-      const chosen = cleanPredictions[m.id];
-      if (chosen && !allowed.includes(chosen)) delete cleanPredictions[m.id];
-    });
-
-    const tempBracket2 = propagateBracketWinners(
-      getLiveBase(),
-      cleanPredictions,
-    );
-    tempBracket2.QF.forEach((m) => {
-      const allowed = [m.homeTeamId, m.awayTeamId].filter(Boolean) as string[];
-      const chosen = cleanPredictions[m.id];
-      if (chosen && !allowed.includes(chosen)) delete cleanPredictions[m.id];
-    });
-
-    const tempBracket3 = propagateBracketWinners(
-      getLiveBase(),
-      cleanPredictions,
-    );
-    tempBracket3.SF.forEach((m) => {
-      const allowed = [m.homeTeamId, m.awayTeamId].filter(Boolean) as string[];
-      const chosen = cleanPredictions[m.id];
-      if (chosen && !allowed.includes(chosen)) delete cleanPredictions[m.id];
-    });
-
-    const tempBracket4 = propagateBracketWinners(
-      getLiveBase(),
-      cleanPredictions,
-    );
-    tempBracket4.Final.forEach((m) => {
-      const allowed = [m.homeTeamId, m.awayTeamId].filter(Boolean) as string[];
-      const chosen = cleanPredictions[m.id];
-      if (chosen && !allowed.includes(chosen)) delete cleanPredictions[m.id];
-    });
-
-    const tempBracket5 = propagateBracketWinners(
-      getLiveBase(),
-      cleanPredictions,
-    );
-    if (
-      cleanPredictions["Champion"] &&
-      cleanPredictions["Champion"] !== tempBracket5.Final[0].winnerId
-    ) {
-      cleanPredictions["Champion"] = tempBracket5.Final[0].winnerId || "";
-    }
-
-    setCurrentPredictions(cleanPredictions);
+    // Matchups (homeTeamId/awayTeamId) come purely from the real, synced
+    // bracket now — they never change based on what's predicted — so picking
+    // a winner for one match can no longer invalidate a downstream pick.
+    // Nothing to reconcile here beyond recording the pick itself.
+    setCurrentPredictions(updated);
   };
 
   const handleSelectSecZimWinner = (
@@ -574,7 +528,7 @@ export default function BracketView({
       }
     });
 
-    let temp = propagateBracketWinners(getLiveBase(), randomGuesses);
+    let temp = attachPredictedWinners(getLiveBase(), randomGuesses);
     temp.R16.forEach((m) => {
       const isStarted = isMatchLocked(m.id, m.kickoff);
       if (!isStarted) {
@@ -588,7 +542,7 @@ export default function BracketView({
       }
     });
 
-    temp = propagateBracketWinners(getLiveBase(), randomGuesses);
+    temp = attachPredictedWinners(getLiveBase(), randomGuesses);
     temp.QF.forEach((m) => {
       const isStarted = isMatchLocked(m.id, m.kickoff);
       if (!isStarted) {
@@ -602,7 +556,7 @@ export default function BracketView({
       }
     });
 
-    temp = propagateBracketWinners(getLiveBase(), randomGuesses);
+    temp = attachPredictedWinners(getLiveBase(), randomGuesses);
     temp.SF.forEach((m) => {
       const isStarted = isMatchLocked(m.id, m.kickoff);
       if (!isStarted) {
@@ -616,7 +570,7 @@ export default function BracketView({
       }
     });
 
-    temp = propagateBracketWinners(getLiveBase(), randomGuesses);
+    temp = attachPredictedWinners(getLiveBase(), randomGuesses);
     const finalMatch = temp.Final[0];
     const isFinalStarted = isMatchLocked(finalMatch.id, finalMatch.kickoff);
     if (!isFinalStarted) {

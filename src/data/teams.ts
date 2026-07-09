@@ -358,3 +358,38 @@ export function propagateBracketWinners(
 
   return newBracket;
 }
+
+/**
+ * Given a bracket that already has its team pairings resolved from real,
+ * synced match data (e.g. dynamicBaseBracket in BracketView.tsx), attach
+ * each match's *predicted* winner without touching homeTeamId/awayTeamId.
+ *
+ * Use this anywhere you're rendering a person's predictions — the matchup
+ * shown for every stage must always be the real teams that actually
+ * qualified, never a hypothetical pairing built from someone's guess. Only
+ * ResultsAdmin (working out the real bracket from admin-entered actual
+ * results) should still use propagateBracketWinners() above.
+ */
+export function attachPredictedWinners(
+  bracket: Bracket,
+  predictions: Record<string, string>,
+  championId: string | null = null,
+): Bracket {
+  const newBracket = JSON.parse(JSON.stringify(bracket)) as Bracket;
+
+  const attach = (matches: Match[]) => {
+    matches.forEach((m) => {
+      m.winnerId = predictions[m.id] || null;
+    });
+  };
+
+  attach(newBracket.R32);
+  attach(newBracket.R16);
+  attach(newBracket.QF);
+  attach(newBracket.SF);
+  attach(newBracket.Final);
+
+  newBracket.ChampionId = championId || predictions["Champion"] || null;
+
+  return newBracket;
+}
