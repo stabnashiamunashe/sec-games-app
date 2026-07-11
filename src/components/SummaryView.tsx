@@ -27,7 +27,6 @@ export default function SummaryView({
     const p = predictions[pTeam.id] || {};
     const scorePicks = scorePredictions[pTeam.id] || {};
 
-    // NOW USING THE DYNAMIC CONFIG PROVIDED BY THE DB
     const breakdown = calculateUserScore(
       p,
       actualResults,

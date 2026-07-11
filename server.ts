@@ -780,6 +780,43 @@ async function startServer() {
   const isRealTeamId = (value: unknown): value is string =>
     typeof value === "string" && value.trim() !== "" && value.trim() !== "0";
 
+  app.post("/api/admin/change-password", verifyAdmin, (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "currentPassword and newPassword are required" });
+    }
+
+    if (typeof newPassword !== "string" || newPassword.length < 4) {
+      return res
+        .status(400)
+        .json({ error: "New password must be at least 4 characters long" });
+    }
+
+    try {
+      const row = db
+        .prepare("SELECT value FROM settings WHERE key = ?")
+        .get("admin_password") as any;
+
+      if (!row || row.value !== currentPassword) {
+        return res.status(403).json({ error: "Current password is incorrect" });
+      }
+
+      db.prepare(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+      ).run("admin_password", newPassword);
+
+      res.json({
+        success: true,
+        message: "Admin password updated successfully.",
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/admin/games/score", verifyAdmin, (req, res) => {
     const {
       gameId,

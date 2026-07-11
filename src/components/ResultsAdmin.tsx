@@ -132,6 +132,12 @@ export default function ResultsAdmin({
   // Admin prediction override state (bypasses the kickoff/finished lock so
   // an admin can fix/enter any team's pick even after a match has started).
   const [showOverrideForm, setShowOverrideForm] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
+  const [passwordChangeError, setPasswordChangeError] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [overrideTeamId, setOverrideTeamId] = useState("");
   const [overrideGameId, setOverrideGameId] = useState("");
   const [overrideWinnerId, setOverrideWinnerId] = useState("");
@@ -192,6 +198,61 @@ export default function ResultsAdmin({
 
   const getAdminKey = () =>
     localStorage.getItem("seczim_admin_password_key") || "";
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeError("");
+
+    if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+      setPasswordChangeError("Please fill in all three fields.");
+      return;
+    }
+    if (newPasswordInput.length < 4) {
+      setPasswordChangeError(
+        "New password must be at least 4 characters long.",
+      );
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setPasswordChangeError("New password and confirmation do not match.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const response = await fetch("/api/admin/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": getAdminKey(),
+        },
+        body: JSON.stringify({
+          currentPassword: currentPasswordInput,
+          newPassword: newPasswordInput,
+        }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Keep the session working with the new password without forcing a
+        // re-login.
+        localStorage.setItem("seczim_admin_password_key", newPasswordInput);
+        setCurrentPasswordInput("");
+        setNewPasswordInput("");
+        setConfirmPasswordInput("");
+        setShowPasswordForm(false);
+        alert("Admin password updated successfully.");
+      } else {
+        setPasswordChangeError(
+          data.error || "Failed to update admin password.",
+        );
+      }
+    } catch (err) {
+      setPasswordChangeError("Error connecting to the server.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleSavePointsConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -616,6 +677,7 @@ export default function ResultsAdmin({
       formType === "config" ? !showPointsConfigForm : false,
     );
     setShowOverrideForm(formType === "override" ? !showOverrideForm : false);
+    setShowPasswordForm(formType === "password" ? !showPasswordForm : false);
   };
 
   // Games available to pick in the override form: whatever category/stage
@@ -741,6 +803,12 @@ export default function ResultsAdmin({
               title="Set or fix any team's prediction, even on games that are already locked"
             >
               <ShieldAlert className="w-3.5 h-3.5" /> Override Locked Prediction
+            </button>
+            <button
+              onClick={() => handleToggleForm("password")}
+              className="text-[10px] font-black bg-brand-dark-medium text-white hover:bg-brand-gold hover:text-brand-dark px-3 py-2 border border-brand-dark-medium rounded-none uppercase tracking-widest flex items-center gap-1 cursor-pointer"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" /> Change Admin Password
             </button>
           </div>
 
@@ -1071,6 +1139,84 @@ export default function ResultsAdmin({
             </div>
           </form>
         </div>
+      )}
+
+      {showPasswordForm && (
+        <form
+          onSubmit={handleChangePassword}
+          className="bg-white border-4 border-brand-dark p-5 rounded-none space-y-4"
+        >
+          <h3 className="text-sm font-black uppercase tracking-wide text-brand-dark border-b border-slate-200 pb-2">
+            Change Admin Password
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">
+                Current Password:
+              </label>
+              <input
+                type="password"
+                required
+                value={currentPasswordInput}
+                onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-brand-dark px-2.5 py-1.5 text-xs font-mono focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">
+                New Password:
+              </label>
+              <input
+                type="password"
+                required
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-brand-dark px-2.5 py-1.5 text-xs font-mono focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black uppercase text-brand-dark-light block mb-1">
+                Confirm New Password:
+              </label>
+              <input
+                type="password"
+                required
+                value={confirmPasswordInput}
+                onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-brand-dark px-2.5 py-1.5 text-xs font-mono focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {passwordChangeError && (
+            <p className="text-xs text-rose-600 font-black uppercase">
+              {passwordChangeError}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPasswordForm(false);
+                setPasswordChangeError("");
+                setCurrentPasswordInput("");
+                setNewPasswordInput("");
+                setConfirmPasswordInput("");
+              }}
+              className="text-xs font-black border-2 border-brand-dark px-4 py-2 hover:bg-slate-50 uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isChangingPassword}
+              className="text-xs font-black bg-brand-dark-medium text-white px-4 py-2 hover:bg-brand-gold hover:text-brand-dark border-2 border-brand-dark-medium uppercase tracking-wider cursor-pointer disabled:opacity-50"
+            >
+              {isChangingPassword ? "Updating..." : "Update Password"}
+            </button>
+          </div>
+        </form>
       )}
 
       {showDirectPointsForm && (
