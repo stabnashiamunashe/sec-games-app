@@ -233,6 +233,27 @@ export default function BracketView({
     return attachPredictedWinners(getLiveBase(), currentPredictions);
   }, [dynamicBaseBracket, currentPredictions]);
 
+  const thirdPlaceMatches = useMemo<Match[]>(
+    () =>
+      games
+        .filter(
+          (game) =>
+            game.category === "world_cup" &&
+            (game.stage === "Third" || game.id === "Third-1"),
+        )
+        .map((game) => ({
+          id: game.id,
+          stage: "Third",
+          homeTeamId: game.home_team_id ? String(game.home_team_id) : null,
+          awayTeamId: game.away_team_id ? String(game.away_team_id) : null,
+          homeTeamLabel: game.home_team_label || undefined,
+          awayTeamLabel: game.away_team_label || undefined,
+          winnerId: currentPredictions[game.id] || null,
+          kickoff: game.kickoff || undefined,
+        })),
+    [games, currentPredictions],
+  );
+
   const getTeamObj = (id: string | null): Team | null => {
     if (!id) return null;
     return WORLD_CUP_TEAMS.find((t) => t.id === id) || null;
@@ -475,6 +496,7 @@ export default function BracketView({
       ...visualBracket.R16,
       ...visualBracket.QF,
       ...visualBracket.SF,
+      ...thirdPlaceMatches,
       ...visualBracket.Final,
     ].find((m) => m.id === matchId);
     if (matched && isMatchLocked(matched.id, matched.kickoff)) {
@@ -584,6 +606,19 @@ export default function BracketView({
       }
     }
 
+    thirdPlaceMatches.forEach((match) => {
+      const isStarted = isMatchLocked(match.id, match.kickoff);
+      if (!isStarted) {
+        const candidates = [match.homeTeamId, match.awayTeamId].filter(
+          Boolean,
+        ) as string[];
+        if (candidates.length > 0) {
+          randomGuesses[match.id] =
+            candidates[Math.floor(Math.random() * candidates.length)];
+        }
+      }
+    });
+
     setCurrentPredictions(randomGuesses);
   };
 
@@ -595,6 +630,7 @@ export default function BracketView({
       ...visualBracket.R16,
       ...visualBracket.QF,
       ...visualBracket.SF,
+      ...thirdPlaceMatches,
       ...visualBracket.Final,
     ];
 
@@ -636,6 +672,8 @@ export default function BracketView({
         return visualBracket.QF;
       case "SF":
         return visualBracket.SF;
+      case "Third":
+        return thirdPlaceMatches;
       case "Final":
         return visualBracket.Final;
       default:
@@ -648,6 +686,7 @@ export default function BracketView({
     { id: "R16", label: "R16", count: 8 },
     { id: "QF", label: "QF", count: 4 },
     { id: "SF", label: "SF", count: 2 },
+    { id: "Third", label: "3rd Place", count: 1 },
     { id: "Final", label: "Final", count: 1 },
   ];
 

@@ -5,6 +5,7 @@ export interface ScoreBreakdown {
   R16: number;
   QF: number;
   SF: number;
+  Third: number;
   Final: number;
   SecZim: number;
   ScoreBonus: number;
@@ -16,6 +17,7 @@ export const DEFAULT_POINTS_CONFIG: PointsConfig = {
   R16: 5,
   QF: 5,
   SF: 5,
+  Third: 40,
   Final: 5,
   SecZim: 5,
 
@@ -30,6 +32,9 @@ export const DEFAULT_POINTS_CONFIG: PointsConfig = {
 
   SF_oneExactScore: 7.5,
   SF_exactScoreline: 15,
+
+  Third_oneExactScore: 20,
+  Third_exactScoreline: 40,
 
   Final_oneExactScore: 7.5,
   Final_exactScoreline: 15,
@@ -82,6 +87,7 @@ export function calculateUserScore(
     R16: 0,
     QF: 0,
     SF: 0,
+    Third: 0,
     Final: 0,
     SecZim: 0,
     ScoreBonus: 0,
@@ -114,6 +120,12 @@ export function calculateUserScore(
         breakdown.SF += points.SF;
       }
     }
+    if (
+      actualResults["Third-1"] &&
+      userPredictions["Third-1"] === actualResults["Third-1"]
+    ) {
+      breakdown.Third += points.Third;
+    }
     const fId = "Final-1";
     if (actualResults[fId] && userPredictions[fId] === actualResults[fId]) {
       breakdown.Final += points.Final;
@@ -136,6 +148,8 @@ export function calculateUserScore(
           else if (game.stage === "R16") breakdown.R16 += points.R16;
           else if (game.stage === "QF") breakdown.QF += points.QF;
           else if (game.stage === "SF") breakdown.SF += points.SF;
+          else if (game.stage === "Third" || game.id === "Third-1")
+            breakdown.Third += points.Third;
           else if (game.stage === "Final" || game.id === "Final-1")
             breakdown.Final += points.Final;
         }
@@ -176,9 +190,11 @@ export function calculateUserScore(
           exactProp = "SecZim_exactScoreline";
         } else {
           const stage =
-            game.stage === "Final" || game.id === "Final-1"
-              ? "Final"
-              : game.stage;
+            game.stage === "Third" || game.id === "Third-1"
+              ? "Third"
+              : game.stage === "Final" || game.id === "Final-1"
+                ? "Final"
+                : game.stage;
           oneExactProp = `${stage}_oneExactScore` as keyof PointsConfig;
           exactProp = `${stage}_exactScoreline` as keyof PointsConfig;
         }
@@ -197,6 +213,7 @@ export function calculateUserScore(
     breakdown.R16 +
     breakdown.QF +
     breakdown.SF +
+    breakdown.Third +
     breakdown.Final +
     breakdown.SecZim +
     breakdown.ScoreBonus;

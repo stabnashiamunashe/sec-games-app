@@ -115,6 +115,12 @@ export default function Leaderboard({
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-brand-gold"></span>
+              <span>
+                THIRD-PLACE PLAYOFF: {pointsConfig.Third} PTS WINNER, {pointsConfig.Third_oneExactScore} PTS PER CORRECT SCORE
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 bg-emerald-400"></span>
               <span>SCORE GUESSES: BONUS SCALED BY ADMIN RULES</span>
             </div>
@@ -198,7 +204,7 @@ export default function Leaderboard({
                         <span className="text-[10px] font-black uppercase tracking-widest text-brand-dark-light block mb-1">
                           PREDICTION POINTS BREAKDOWN
                         </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center">
                           <div className="bg-white p-2 rounded-none border-2 border-brand-dark">
                             <span className="text-[9px] text-brand-dark-muted uppercase font-black tracking-widest block">
                               R32
@@ -229,6 +235,14 @@ export default function Leaderboard({
                             </span>
                             <span className="text-sm font-black text-brand-dark font-mono">
                               {team.breakdown.SF}
+                            </span>
+                          </div>
+                          <div className="bg-brand-gold-pale p-2 rounded-none border-2 border-brand-gold">
+                            <span className="text-[9px] text-brand-dark font-black uppercase tracking-widest block">
+                              3rd Place
+                            </span>
+                            <span className="text-sm font-black text-brand-dark font-mono">
+                              {team.breakdown.Third}
                             </span>
                           </div>
                           <div className="bg-white p-2 rounded-none border-2 border-brand-dark">

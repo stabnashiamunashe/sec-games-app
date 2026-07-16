@@ -145,7 +145,7 @@ export default function App() {
       if (data && Array.isArray(data.games)) {
         // Official FIFA 2026 match numbering (see worldcup26.ir docs):
         // group 1-72, r32 73-88, r16 89-96, qf 97-100, sf 101-102,
-        // third 103 (no internal stage - skipped), final 104.
+        // third 103, final 104.
         const mapApiIdToInternalId = (apiId: string, type: string): string => {
           const numericId = parseInt(apiId);
           if (type === "r32" || (numericId >= 73 && numericId <= 88))
@@ -156,6 +156,7 @@ export default function App() {
             return `QF-${numericId - 96}`;
           if (type === "sf" || (numericId >= 101 && numericId <= 102))
             return `SF-${numericId - 100}`;
+          if (type === "third" || numericId === 103) return "Third-1";
           if (type === "final" || numericId === 104) return "Final-1";
           return "";
         };
@@ -193,7 +194,7 @@ export default function App() {
         const failedIds: string[] = [];
 
         for (const g of data.games) {
-          if (g.type === "group" || g.type === "third") continue;
+          if (g.type === "group") continue;
 
           const internalId = mapApiIdToInternalId(g.id, g.type);
           if (!internalId) continue;
@@ -207,8 +208,11 @@ export default function App() {
           const isFinished = g.finished === "TRUE";
           const winnerId = isFinished ? getWinnerIdFromApiGame(g) : null;
 
-          // Nothing worth writing yet: teams still TBD and match not finished.
-          if (!homeTeamId && !awayTeamId && !isFinished) continue;
+          // Even while both sides are TBD, the API kickoff is authoritative.
+          // Persist it so a placeholder schedule can never lock a game early.
+          const hasApiKickoff = Boolean(g.kickoff_utc);
+          if (!homeTeamId && !awayTeamId && !isFinished && !hasApiKickoff)
+            continue;
 
           try {
             const syncRes = await fetch("/api/admin/games/score", {
@@ -233,6 +237,7 @@ export default function App() {
                 // stale "Winner Match X" placeholder text, now the real team name.
                 home_team_label: g.home_team_name_en || null,
                 away_team_label: g.away_team_name_en || null,
+                kickoff: g.kickoff_utc || null,
               }),
             });
             if (syncRes.ok) {

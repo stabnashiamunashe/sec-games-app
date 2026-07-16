@@ -5,7 +5,14 @@ export interface Team {
   group: string;
 }
 
-export type Stage = "R32" | "R16" | "QF" | "SF" | "Final" | "Champion";
+export type Stage =
+  | "R32"
+  | "R16"
+  | "QF"
+  | "SF"
+  | "Third"
+  | "Final"
+  | "Champion";
 
 export interface Match {
   id: string; // e.g. "R32-1"
@@ -47,6 +54,7 @@ export interface SeasonTotal {
 export interface ParticipatingTeam {
   id: string;
   name: string;
+  color: string;
   avatar: string;
   cumulativeHistory: SeasonTotal[]; // previous seasons
   passcode?: string;
@@ -58,6 +66,7 @@ export interface PointsConfig {
   R16: number;
   QF: number;
   SF: number;
+  Third: number;
   Final: number;
   SecZim: number;
 
@@ -72,6 +81,9 @@ export interface PointsConfig {
 
   SF_oneExactScore: number;
   SF_exactScoreline: number;
+
+  Third_oneExactScore: number;
+  Third_exactScoreline: number;
 
   Final_oneExactScore: number;
   Final_exactScoreline: number;

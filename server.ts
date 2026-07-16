@@ -828,6 +828,7 @@ async function startServer() {
       away_team_id,
       home_team_label,
       away_team_label,
+      kickoff,
     } = req.body;
     if (!gameId) return res.status(400).json({ error: "gameId is required" });
 
@@ -860,6 +861,11 @@ async function startServer() {
         away_team_label !== undefined && away_team_label !== null
           ? String(away_team_label)
           : null;
+      const resolvedKickoff =
+        typeof kickoff === "string" &&
+        !Number.isNaN(new Date(kickoff).getTime())
+          ? new Date(kickoff).toISOString()
+          : null;
 
       db.prepare(
         `
@@ -872,7 +878,8 @@ async function startServer() {
     home_team_id = ?,
     away_team_id = ?,
     home_team_label = COALESCE(?, CASE WHEN ? IS NOT NULL THEN NULL ELSE home_team_label END),
-    away_team_label = COALESCE(?, CASE WHEN ? IS NOT NULL THEN NULL ELSE away_team_label END)
+    away_team_label = COALESCE(?, CASE WHEN ? IS NOT NULL THEN NULL ELSE away_team_label END),
+    kickoff = COALESCE(?, kickoff)
   WHERE id = ?
 `,
       ).run(
@@ -890,6 +897,7 @@ async function startServer() {
         resolvedHomeTeamId,
         resolvedAwayTeamLabel,
         resolvedAwayTeamId,
+        resolvedKickoff,
         gameId,
       );
 

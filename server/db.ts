@@ -110,30 +110,51 @@ const hasPointsConfig = db
   .prepare("SELECT 1 FROM settings WHERE key = ?")
   .get("points_config");
 
+const DEFAULT_POINTS_CONFIG = {
+  R32: 5,
+  R16: 5,
+  QF: 5,
+  SF: 5,
+  Third: 40,
+  Final: 5,
+  SecZim: 5,
+  R32_oneExactScore: 7.5,
+  R32_exactScoreline: 15,
+  R16_oneExactScore: 7.5,
+  R16_exactScoreline: 15,
+  QF_oneExactScore: 7.5,
+  QF_exactScoreline: 15,
+  SF_oneExactScore: 7.5,
+  SF_exactScoreline: 15,
+  Third_oneExactScore: 20,
+  Third_exactScoreline: 40,
+  Final_oneExactScore: 7.5,
+  Final_exactScoreline: 15,
+  SecZim_oneExactScore: 7.5,
+  SecZim_exactScoreline: 15,
+};
+
 if (!hasPointsConfig) {
   db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run(
     "points_config",
-    JSON.stringify({
-      R32: 5,
-      R16: 5,
-      QF: 5,
-      SF: 5,
-      Final: 5,
-      SecZim: 5,
-      R32_oneExactScore: 7.5,
-      R32_exactScoreline: 15,
-      R16_oneExactScore: 7.5,
-      R16_exactScoreline: 15,
-      QF_oneExactScore: 7.5,
-      QF_exactScoreline: 15,
-      SF_oneExactScore: 7.5,
-      SF_exactScoreline: 15,
-      Final_oneExactScore: 7.5,
-      Final_exactScoreline: 15,
-      SecZim_oneExactScore: 7.5,
-      SecZim_exactScoreline: 15,
-    }),
+    JSON.stringify(DEFAULT_POINTS_CONFIG),
   );
+} else {
+  const existingPointsConfig = db
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get("points_config") as { value: string };
+  try {
+    const savedConfig = JSON.parse(existingPointsConfig.value);
+    db.prepare("UPDATE settings SET value = ? WHERE key = ?").run(
+      JSON.stringify({ ...DEFAULT_POINTS_CONFIG, ...savedConfig }),
+      "points_config",
+    );
+  } catch {
+    db.prepare("UPDATE settings SET value = ? WHERE key = ?").run(
+      JSON.stringify(DEFAULT_POINTS_CONFIG),
+      "points_config",
+    );
+  }
 }
 
 // Seed Prediction Teams
@@ -466,5 +487,43 @@ if (gameCount.count === 0) {
 
   console.log("Seeded initial World Cup and SecZim corporate games");
 }
+
+// Match 103 is occasionally absent from the live feed. Keep the current
+// third-place and final pairings available for prediction in that case.
+db.prepare(
+  `
+    INSERT OR IGNORE INTO games (
+      id, category, stage, home_team_id, away_team_id, home_team_label,
+      away_team_label, kickoff, finished, winner_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'FALSE', NULL)
+  `,
+).run(
+  "Third-1",
+  "world_cup",
+  "Third",
+  "33",
+  "45",
+  "France",
+  "England",
+  "2026-07-18T21:00:00Z",
+);
+
+// Update installations that already have the fallback records, without
+// touching a settled result. The live sync can still refresh these teams.
+db.prepare(
+  `
+    UPDATE games
+    SET home_team_id = ?, away_team_id = ?, home_team_label = ?, away_team_label = ?, kickoff = ?
+    WHERE id = ? AND COALESCE(finished, 'FALSE') != 'TRUE'
+  `,
+).run("33", "45", "France", "England", "2026-07-18T21:00:00Z", "Third-1");
+
+db.prepare(
+  `
+    UPDATE games
+    SET home_team_id = ?, away_team_id = ?, home_team_label = ?, away_team_label = ?, kickoff = ?
+    WHERE id = ? AND COALESCE(finished, 'FALSE') != 'TRUE'
+  `,
+).run("29", "37", "Spain", "Argentina", "2026-07-19T19:00:00Z", "Final-1");
 
 export { db };

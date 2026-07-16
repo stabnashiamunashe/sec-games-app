@@ -40,7 +40,15 @@ interface ResultsAdminProps {
 }
 
 // Stage keys aligned with PointsConfig keys
-const CONFIG_STAGES = ["R32", "R16", "QF", "SF", "Final", "SecZim"] as const;
+const CONFIG_STAGES = [
+  "R32",
+  "R16",
+  "QF",
+  "SF",
+  "Third",
+  "Final",
+  "SecZim",
+] as const;
 
 export default function ResultsAdmin({
   actualResults,
@@ -80,6 +88,7 @@ export default function ResultsAdmin({
     R16: 5,
     QF: 5,
     SF: 5,
+    Third: 40,
     Final: 5,
     SecZim: 5,
     R32_oneExactScore: 7.5,
@@ -90,6 +99,8 @@ export default function ResultsAdmin({
     QF_exactScoreline: 15,
     SF_oneExactScore: 7.5,
     SF_exactScoreline: 15,
+    Third_oneExactScore: 20,
+    Third_exactScoreline: 40,
     Final_oneExactScore: 7.5,
     Final_exactScoreline: 15,
     SecZim_oneExactScore: 7.5,
@@ -664,6 +675,7 @@ export default function ResultsAdmin({
     { id: "R16", label: "R16" },
     { id: "QF", label: "QF" },
     { id: "SF", label: "SF" },
+    { id: "Third", label: "3rd Place" },
     { id: "Final", label: "Final" },
   ];
 
@@ -1544,6 +1556,8 @@ export default function ResultsAdmin({
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-dark bg-brand-gold px-2 py-1 inline-block">
                     {stage === "SecZim"
                       ? "SecZim Corporate Events"
+                      : stage === "Third"
+                        ? "World Cup: Third-place Playoff"
                       : `World Cup: ${stage}`}
                   </h4>
 
